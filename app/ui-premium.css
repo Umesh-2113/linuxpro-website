@@ -1,0 +1,1981 @@
+/* ===== LinuxPro Premium UI — 3D depth, motion, responsive ===== */
+
+html {
+  scroll-behavior: smooth;
+}
+
+:root {
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-smooth: cubic-bezier(0.22, 1, 0.36, 1);
+  --depth-1: 0 4px 12px rgba(0, 0, 0, 0.25);
+  --depth-2: 0 12px 32px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.04);
+  --depth-3: 0 24px 48px rgba(0, 0, 0, 0.45), 0 0 40px var(--primary-glow);
+  --depth-inset: inset 0 1px 0 rgba(255, 255, 255, 0.08), inset 0 -2px 8px rgba(0, 0, 0, 0.2);
+  --perspective: 1200px;
+}
+
+[data-theme="light"] {
+  --depth-1: 0 4px 16px rgba(15, 23, 42, 0.08);
+  --depth-2: 0 12px 32px rgba(15, 23, 42, 0.1);
+  --depth-3: 0 20px 40px rgba(15, 23, 42, 0.12), 0 0 32px var(--primary-glow);
+  --depth-inset: inset 0 1px 0 rgba(255, 255, 255, 0.9), inset 0 -1px 4px rgba(15, 23, 42, 0.06);
+}
+
+/* Site shell */
+.site-shell {
+  position: relative;
+  min-height: 100vh;
+  isolation: isolate;
+}
+
+.site-main {
+  position: relative;
+  z-index: 1;
+}
+
+/* Ambient background */
+.page-ambient {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.page-ambient__mesh {
+  position: absolute;
+  inset: -20%;
+  background:
+    radial-gradient(ellipse 80% 50% at 20% 20%, rgba(0, 208, 132, 0.12), transparent 50%),
+    radial-gradient(ellipse 60% 40% at 80% 10%, rgba(56, 189, 248, 0.08), transparent 45%),
+    radial-gradient(ellipse 50% 60% at 50% 100%, rgba(0, 208, 132, 0.06), transparent 50%);
+  animation: mesh-drift 18s ease-in-out infinite alternate;
+}
+
+.page-ambient__grid {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: radial-gradient(ellipse 80% 70% at 50% 30%, black, transparent);
+  opacity: 0.5;
+}
+
+.page-ambient__orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(60px);
+  animation: orb-float 12s ease-in-out infinite;
+}
+
+.page-ambient__orb--1 {
+  width: 420px;
+  height: 420px;
+  top: -8%;
+  right: -5%;
+  background: rgba(0, 208, 132, 0.18);
+}
+
+.page-ambient__orb--2 {
+  width: 320px;
+  height: 320px;
+  bottom: 10%;
+  left: -8%;
+  background: rgba(14, 165, 233, 0.12);
+  animation-delay: -4s;
+}
+
+.page-ambient__orb--3 {
+  width: 240px;
+  height: 240px;
+  top: 45%;
+  left: 40%;
+  background: rgba(0, 208, 132, 0.1);
+  animation-delay: -7s;
+}
+
+.page-ambient__orb--4 {
+  width: 180px;
+  height: 180px;
+  bottom: 25%;
+  right: 15%;
+  background: rgba(168, 85, 247, 0.08);
+  animation-delay: -2s;
+}
+
+.page-ambient--auth .page-ambient__orb--1 {
+  width: 500px;
+  height: 500px;
+  opacity: 0.9;
+}
+
+.page-ambient--minimal .page-ambient__mesh,
+.page-ambient--minimal .page-ambient__orb--3,
+.page-ambient--minimal .page-ambient__orb--4 {
+  opacity: 0.35;
+}
+
+@keyframes mesh-drift {
+  0% { transform: translate(0, 0) scale(1); }
+  100% { transform: translate(2%, -2%) scale(1.05); }
+}
+
+@keyframes orb-float {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(24px, -20px) scale(1.05); }
+  66% { transform: translate(-16px, 12px) scale(0.95); }
+}
+
+@keyframes shine-sweep {
+  0% { transform: translateX(-120%) skewX(-15deg); }
+  100% { transform: translateX(220%) skewX(-15deg); }
+}
+
+@keyframes glow-pulse {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
+
+/* 3D glass upgrade */
+.glass {
+  position: relative;
+  box-shadow: var(--depth-2);
+  transition:
+    transform 0.45s var(--ease-smooth),
+    box-shadow 0.45s var(--ease-smooth),
+    border-color 0.3s ease;
+  transform-style: preserve-3d;
+}
+
+.glass::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.12) 0%,
+    transparent 40%,
+    transparent 60%,
+    rgba(255, 255, 255, 0.04) 100%
+  );
+  pointer-events: none;
+  opacity: 0.7;
+}
+
+.glass:hover {
+  border-color: rgba(0, 208, 132, 0.25);
+}
+
+/* Interactive 3D cards */
+.plan-card,
+.stock-card,
+.feature-card,
+.testimonial-card,
+.why-us__card,
+.order-card,
+.servers-pro-card,
+.admin-panel,
+.admin-stock__form-panel,
+.admin-stock__list-panel,
+.ticket-stats__card,
+.order-stats__card,
+.manage-stats__card,
+.auth-page__panel--form,
+.auth-page__form-wrap.glass,
+.stock-client-head,
+.stock-hero {
+  transform-style: preserve-3d;
+  transition:
+    transform 0.5s var(--ease-smooth),
+    box-shadow 0.5s var(--ease-smooth),
+    border-color 0.3s ease;
+}
+
+.plan-card:hover,
+.stock-card:hover,
+.feature-card:hover,
+.testimonial-card:hover,
+.order-card:hover,
+.servers-pro-card:hover {
+  transform: translateY(-10px) rotateX(4deg) scale(1.02);
+  box-shadow: var(--depth-3);
+}
+
+.plan-card--popular {
+  transform: translateY(-4px);
+  box-shadow: var(--depth-3);
+}
+
+.plan-card--popular:hover {
+  transform: translateY(-14px) rotateX(3deg) scale(1.03);
+}
+
+/* Buttons — 3D press */
+.btn {
+  position: relative;
+  overflow: hidden;
+  transform-style: preserve-3d;
+  transition:
+    transform 0.35s var(--ease-spring),
+    box-shadow 0.35s ease,
+    background 0.25s ease,
+    border-color 0.25s ease;
+}
+
+.btn::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(120deg, transparent 30%, rgba(255, 255, 255, 0.25) 50%, transparent 70%);
+  transform: translateX(-120%) skewX(-15deg);
+  transition: none;
+}
+
+.btn:hover::after {
+  animation: shine-sweep 0.7s ease;
+}
+
+.btn--primary:hover {
+  transform: translateY(-4px) scale(1.02);
+  box-shadow: 0 12px 28px var(--primary-glow), 0 4px 0 rgba(0, 0, 0, 0.15);
+}
+
+.btn--primary:active {
+  transform: translateY(-1px) scale(0.98);
+}
+
+.btn--outline:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--depth-1);
+}
+
+/* Scroll animations — 3D entrance */
+[data-animate] {
+  opacity: 0;
+  transform: translateY(48px) rotateX(10deg) scale(0.94);
+  transform-origin: center bottom;
+  transition:
+    opacity 0.8s var(--ease-smooth),
+    transform 0.8s var(--ease-smooth);
+  will-change: transform, opacity;
+}
+
+[data-animate].visible {
+  opacity: 1;
+  transform: translateY(0) rotateX(0) scale(1);
+}
+
+/* Header — floating glass */
+.header {
+  transform: translateZ(0);
+}
+
+.header.scrolled {
+  box-shadow: var(--depth-2);
+  border-bottom-color: rgba(0, 208, 132, 0.15);
+}
+
+/* Hero 3D */
+.hero__dashboard {
+  perspective: var(--perspective);
+  transform-style: preserve-3d;
+}
+
+.hero__dashboard > * {
+  transition: transform 0.6s var(--ease-smooth);
+  transform: rotateY(-6deg) rotateX(4deg);
+  box-shadow: var(--depth-3);
+}
+
+.hero__container:hover .hero__dashboard > * {
+  transform: rotateY(-2deg) rotateX(2deg) translateY(-6px);
+}
+
+.hero__badge-dot {
+  animation: glow-pulse 2s ease-in-out infinite;
+}
+
+.hero__glow {
+  animation: orb-float 14s ease-in-out infinite;
+}
+
+/* Section headers */
+.section-header {
+  perspective: var(--perspective);
+}
+
+.section-tag {
+  display: inline-block;
+  animation: glow-pulse 3s ease-in-out infinite;
+}
+
+.section-title {
+  background: linear-gradient(135deg, var(--accent) 0%, var(--primary) 120%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+[data-theme="light"] .section-title {
+  background: linear-gradient(135deg, #0f172a 0%, #00b86d 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+}
+
+/* Auth pages */
+.auth-page {
+  position: relative;
+  overflow: hidden;
+}
+
+.auth-page__panel--form {
+  box-shadow: var(--depth-3);
+  transform: translateZ(0);
+}
+
+.auth-page__panel--visual {
+  transform-style: preserve-3d;
+}
+
+.auth-page__glow {
+  animation: orb-float 10s ease-in-out infinite;
+}
+
+.auth-form__field input,
+.auth-form__field select,
+.auth-form__field textarea {
+  transition:
+    transform 0.25s ease,
+    border-color 0.25s ease,
+    box-shadow 0.25s ease;
+  box-shadow: var(--depth-inset);
+}
+
+.auth-form__field input:focus,
+.auth-form__field select:focus,
+.auth-form__field textarea:focus {
+  transform: translateY(-1px);
+  box-shadow: var(--depth-inset), 0 0 0 3px var(--primary-glow);
+}
+
+/* Admin login */
+.admin-login-page {
+  position: relative;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.admin-login-card {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 440px;
+  box-shadow: var(--depth-3);
+  animation: modal-pop 0.5s var(--ease-spring);
+}
+
+/* Admin + Client layouts */
+.admin-layout,
+.client-layout {
+  position: relative;
+  min-height: 100vh;
+}
+
+.admin-sidebar,
+.client-sidebar {
+  box-shadow: var(--depth-2);
+  transition: transform 0.4s var(--ease-smooth), box-shadow 0.4s ease;
+}
+
+.admin-sidebar__link,
+.client-sidebar__link {
+  transition:
+    transform 0.25s var(--ease-spring),
+    background 0.25s ease,
+    color 0.25s ease;
+}
+
+.admin-sidebar__link:hover,
+.client-sidebar__link:hover {
+  transform: translateX(4px);
+}
+
+.admin-sidebar__link.active,
+.client-sidebar__link.active {
+  box-shadow: inset 3px 0 0 var(--primary), var(--depth-inset);
+}
+
+.admin-main,
+.client-main {
+  position: relative;
+  z-index: 1;
+}
+
+.admin-topbar,
+.client-topbar {
+  backdrop-filter: blur(12px);
+}
+
+/* Mobile drawer controls (hidden on desktop) */
+.sidebar-mobilebar {
+  display: none;
+}
+
+.sidebar-mobile-toggle,
+.sidebar-close {
+  display: none;
+}
+
+.sidebar-backdrop {
+  display: none;
+}
+
+/* Stock display */
+.stock-card__glow {
+  animation: glow-pulse 4s ease-in-out infinite;
+}
+
+.stock-filter-btn,
+.stock-filter-btn.active {
+  transition: transform 0.3s var(--ease-spring), box-shadow 0.3s ease;
+}
+
+.stock-filter-btn.active {
+  transform: scale(1.04);
+  box-shadow: 0 4px 16px var(--primary-glow);
+}
+
+/* Modals */
+.order-modal--solid {
+  box-shadow: var(--depth-3);
+  animation: modal-pop 0.4s var(--ease-spring);
+}
+
+@keyframes modal-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.92) translateY(16px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* Tables — mobile scroll */
+.admin-stock-table-wrap,
+.client-table-wrap {
+  -webkit-overflow-scrolling: touch;
+  border-radius: var(--radius);
+}
+
+/* Footer */
+.footer {
+  position: relative;
+  z-index: 1;
+}
+
+.footer__grid a {
+  transition: transform 0.25s ease, color 0.25s ease;
+}
+
+.footer__grid a:hover {
+  transform: translateX(4px);
+  color: var(--primary);
+}
+
+/* Chat widget */
+.chat-widget__toggle {
+  box-shadow: var(--depth-3);
+  transition: transform 0.4s var(--ease-spring);
+}
+
+.chat-widget__toggle:hover {
+  transform: scale(1.08) rotate(-3deg);
+}
+
+/* Loading screen */
+.client-loading {
+  position: relative;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  z-index: 1;
+}
+
+/* Loading spinner */
+.client-loading__spinner,
+.auth-form + .client-loading__spinner {
+  animation: spin-glow 1s linear infinite;
+}
+
+@keyframes spin-glow {
+  to { transform: rotate(360deg); }
+}
+
+/* Smooth scrollbar */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 208, 132, 0.4) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: rgba(0, 208, 132, 0.35);
+  border-radius: 99px;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 208, 132, 0.55);
+}
+
+/* Responsive — enhanced */
+@media (max-width: 1200px) {
+  .admin-stock__layout {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-tickets-layout,
+  .admin-order-toolbar + .admin-tickets-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 1024px) {
+  .hero__dashboard > * {
+    transform: none;
+  }
+
+  .auth-page {
+    grid-template-columns: 1fr;
+  }
+
+  .auth-page__panel--visual {
+    display: none;
+  }
+
+  .admin-layout,
+  .client-layout {
+    grid-template-columns: 1fr;
+  }
+
+  /* Mobile top bar with hamburger */
+  .sidebar-mobilebar {
+    position: sticky;
+    top: 0;
+    z-index: 150;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    background: var(--secondary);
+    border-bottom: 1px solid var(--border);
+    backdrop-filter: blur(12px);
+  }
+
+  .sidebar-mobilebar__brand {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .sidebar-mobilebar__theme {
+    margin-left: auto;
+  }
+
+  .sidebar-mobile-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 42px;
+    height: 42px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: rgba(0, 208, 132, 0.08);
+    color: var(--primary);
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+
+  .sidebar-mobile-toggle svg {
+    width: 22px;
+    height: 22px;
+  }
+
+  .sidebar-close {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--text);
+    font-size: 1rem;
+    cursor: pointer;
+    z-index: 2;
+  }
+
+  .admin-sidebar,
+  .client-sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    height: 100vh;
+    height: 100dvh;
+    width: 82%;
+    max-width: 320px;
+    z-index: 210;
+    overflow-y: auto;
+    overflow-x: hidden;
+    transform: translateX(-100%);
+    border-radius: 0;
+    /* Solid, opaque background so page content does not show through */
+    background: var(--modal-bg);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    border-right: 1px solid var(--border);
+    box-shadow: 24px 0 60px rgba(0, 0, 0, 0.55);
+  }
+
+  .admin-sidebar::before,
+  .client-sidebar::before {
+    display: none;
+  }
+
+  /* Keep link hover from pushing horizontal overflow inside the drawer */
+  .admin-sidebar .admin-sidebar__link:hover,
+  .client-sidebar .client-sidebar__link:hover {
+    transform: none;
+  }
+
+  .admin-sidebar.sidebar--open,
+  .client-sidebar.sidebar--open {
+    transform: translateX(0);
+  }
+
+  .sidebar-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 200;
+    background: rgba(0, 0, 0, 0.55);
+    backdrop-filter: blur(2px);
+    animation: backdrop-fade 0.25s ease;
+  }
+
+  @keyframes backdrop-fade {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  .admin-main,
+  .client-main {
+    padding: 20px 16px;
+  }
+
+  .plans__grid {
+    gap: 20px;
+  }
+}
+
+@media (max-width: 768px) {
+  :root {
+    --header-height: 64px;
+  }
+
+  .container {
+    padding: 0 16px;
+  }
+
+  .btn--lg {
+    padding: 14px 24px;
+    font-size: 0.95rem;
+  }
+
+  .plan-card:hover,
+  .stock-card:hover,
+  .feature-card:hover {
+    transform: translateY(-6px) scale(1.01);
+  }
+
+  .hero__title {
+    font-size: clamp(1.75rem, 8vw, 2.5rem);
+  }
+
+  .section-title {
+    font-size: clamp(1.5rem, 6vw, 2rem);
+  }
+
+  .admin-form-row {
+    grid-template-columns: 1fr;
+  }
+
+  .order-modal {
+    margin: 12px;
+    max-height: calc(100vh - 24px);
+    overflow-y: auto;
+  }
+
+  .page-ambient__orb--1,
+  .page-ambient__orb--2 {
+    opacity: 0.5;
+    transform: scale(0.7);
+  }
+}
+
+@media (max-width: 480px) {
+  .plans__grid,
+  .features__grid,
+  .stats__grid {
+    gap: 16px;
+  }
+
+  .hero__cta {
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .hero__cta .btn {
+    width: 100%;
+  }
+
+  .stock-card__specs {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ===== Global mobile hardening (prevent horizontal overflow) =====
+   Use overflow-x: clip so we don't create a scroll context that would
+   break position: sticky on the client/admin sidebars. */
+html,
+body {
+  max-width: 100%;
+  overflow-x: clip;
+}
+
+img,
+video,
+canvas {
+  max-width: 100%;
+  height: auto;
+}
+
+pre,
+code {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+table {
+  max-width: 100%;
+}
+
+@media (max-width: 768px) {
+  .container {
+    width: 100%;
+  }
+
+  /* Any table not already wrapped scrolls horizontally instead of overflowing */
+  .client-table-wrap,
+  .admin-stock-table-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .client-table,
+  .admin-stock-table {
+    min-width: 560px;
+  }
+
+  .compare__table {
+    min-width: 600px;
+  }
+
+  /* Toolbars and headers wrap on small screens */
+  .stock-toolbar,
+  .admin-order-toolbar,
+  .client-topbar,
+  .admin-topbar {
+    flex-wrap: wrap;
+  }
+
+  /* Long words / emails won't blow out cards */
+  .order-card,
+  .stock-card,
+  .client-card,
+  .glass {
+    word-break: break-word;
+  }
+
+  /* Modals fit small viewports */
+  .order-modal--solid {
+    width: calc(100vw - 24px);
+    max-width: 100%;
+  }
+}
+
+@media (max-width: 420px) {
+  .btn {
+    font-size: 0.9rem;
+  }
+
+  .client-topbar h1,
+  .admin-topbar h1 {
+    font-size: 1.35rem;
+  }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  [data-animate] {
+    opacity: 1;
+    transform: none;
+  }
+
+  .page-ambient__mesh,
+  .page-ambient__orb {
+    animation: none;
+  }
+}
+
+/* ===================================================================
+   News tags (shared by popup + admin)
+   =================================================================== */
+.news-tag {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+.news-tag--info { background: rgba(56, 189, 248, 0.14); color: #38bdf8; border-color: rgba(56, 189, 248, 0.35); }
+.news-tag--update { background: rgba(16, 185, 129, 0.14); color: #10b981; border-color: rgba(16, 185, 129, 0.35); }
+.news-tag--promo { background: rgba(168, 85, 247, 0.16); color: #c084fc; border-color: rgba(168, 85, 247, 0.38); }
+.news-tag--warning { background: rgba(245, 158, 11, 0.16); color: #f59e0b; border-color: rgba(245, 158, 11, 0.38); }
+
+/* ===================================================================
+   News popup (customer-facing)
+   =================================================================== */
+.news-popup__overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.78);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  z-index: 9999;
+  animation: news-fade-in 0.25s ease-out;
+  overscroll-behavior: contain;
+}
+
+.news-popup {
+  position: relative;
+  width: 100%;
+  max-width: 460px;
+  background: var(--modal-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 28px 90px rgba(0, 0, 0, 0.6);
+  padding: 28px;
+  overflow: hidden;
+  animation: news-pop-in 0.4s var(--ease-spring);
+}
+
+.news-popup::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 4px;
+  background: linear-gradient(90deg, var(--primary), var(--primary-light, #34d399));
+}
+.news-popup--info::before { background: linear-gradient(90deg, #38bdf8, #0ea5e9); }
+.news-popup--update::before { background: linear-gradient(90deg, #10b981, #059669); }
+.news-popup--promo::before { background: linear-gradient(90deg, #c084fc, #a855f7); }
+.news-popup--warning::before { background: linear-gradient(90deg, #f59e0b, #d97706); }
+
+.news-popup__close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: 34px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted, #94a3b8);
+  cursor: pointer;
+  transition: background var(--transition), color var(--transition);
+}
+.news-popup__close:hover { background: var(--input-bg); color: var(--accent); }
+.news-popup__close svg { width: 18px; height: 18px; }
+
+.news-popup__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+  padding-right: 36px;
+}
+
+.news-popup__counter {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--muted, #94a3b8);
+}
+
+.news-popup__title {
+  margin: 0 0 10px;
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: var(--accent);
+  word-break: break-word;
+}
+
+.news-popup__body {
+  margin: 0 0 24px;
+  color: var(--muted, #94a3b8);
+  font-size: 0.95rem;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 45vh;
+  overflow-y: auto;
+}
+
+.news-popup__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.news-popup__contact {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--input-bg);
+}
+
+.news-popup__contact-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  font-size: 0.88rem;
+}
+
+.news-popup__contact-row span {
+  color: var(--muted, #94a3b8);
+  font-weight: 600;
+}
+
+.news-popup__contact-row a {
+  color: var(--primary);
+  text-decoration: none;
+  word-break: break-all;
+}
+
+.news-popup__contact-row a:hover {
+  text-decoration: underline;
+}
+
+.news-popup__whatsapp {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.news-popup__wa-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1 1 140px;
+  min-height: 42px;
+  padding: 10px 14px;
+  border-radius: var(--radius);
+  font-size: 0.88rem;
+  font-weight: 700;
+  text-decoration: none;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.news-popup__wa-btn:hover {
+  transform: translateY(-1px);
+}
+
+.news-popup__wa-btn--chat {
+  background: #25d366;
+  color: #052e16;
+  box-shadow: 0 8px 24px rgba(37, 211, 102, 0.28);
+}
+
+.news-popup__wa-btn--join {
+  background: rgba(37, 211, 102, 0.12);
+  color: #25d366;
+  border: 1px solid rgba(37, 211, 102, 0.45);
+}
+
+@keyframes news-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes news-pop-in {
+  0% { opacity: 0; transform: scale(0.92) translateY(16px); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+/* ===================================================================
+   Admin news manager
+   =================================================================== */
+.admin-news__settings-panel {
+  padding: 24px;
+  border-radius: var(--radius-lg);
+  margin-bottom: 24px;
+}
+
+.admin-news__settings-form {
+  margin-top: 8px;
+}
+
+.admin-news__settings-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px 20px;
+}
+
+.admin-news__saved-msg {
+  margin: 0 0 12px;
+  color: var(--primary);
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.admin-news__layout {
+  display: grid;
+  grid-template-columns: minmax(300px, 420px) minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+
+.admin-news__form-panel,
+.admin-news__list-panel {
+  padding: 24px;
+  border-radius: var(--radius-lg);
+  min-width: 0;
+}
+
+.admin-news__form-panel--editing {
+  box-shadow: 0 0 0 1px var(--primary);
+}
+
+.admin-news__active-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
+  font-size: 0.9rem;
+  color: var(--accent);
+  cursor: pointer;
+}
+.admin-news__active-toggle input { width: 18px; height: 18px; accent-color: var(--primary); }
+
+.admin-news__count {
+  font-size: 0.85rem;
+  color: var(--muted, #94a3b8);
+}
+
+.admin-news__empty {
+  color: var(--muted, #94a3b8);
+  font-size: 0.92rem;
+  padding: 12px 0;
+}
+
+.admin-news__items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.admin-news__item {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--input-bg);
+}
+
+.admin-news__item-main { flex: 1 1 240px; min-width: 0; }
+
+.admin-news__item-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+}
+.admin-news__item-head strong { color: var(--accent); word-break: break-word; }
+
+.admin-news__badge-off {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.18);
+  color: var(--muted, #94a3b8);
+}
+
+.admin-news__item-body {
+  margin: 0 0 6px;
+  color: var(--muted, #94a3b8);
+  font-size: 0.9rem;
+  line-height: 1.5;
+  word-break: break-word;
+}
+
+.admin-news__item-date {
+  font-size: 0.78rem;
+  color: var(--muted, #94a3b8);
+}
+
+.admin-news__item-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+.admin-news__delete { color: #f87171; }
+.admin-news__delete:hover { color: #ef4444; }
+
+@media (max-width: 900px) {
+  .admin-news__layout { grid-template-columns: 1fr; }
+  .admin-news__settings-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 520px) {
+  .news-popup { padding: 22px 18px; }
+  .news-popup__title { font-size: 1.15rem; }
+  .news-popup__actions .btn { flex: 1 1 auto; }
+  .admin-news__item { flex-direction: column; }
+  .admin-news__item-actions { width: 100%; }
+}
+
+/* ===================================================================
+   FINAL RESPONSIVE PASS — fluid typography, overflow safety,
+   touch targets, and per-breakpoint tuning. Loaded after globals.css
+   so these rules win when specificity is equal.
+   =================================================================== */
+
+/* --- 1. Shrinkable flex/grid descendants (prevents horizontal scroll) --- */
+.client-main,
+.admin-main,
+.site-main,
+.container,
+.client-grid-2,
+.client-grid-2 > *,
+.client-panel,
+.admin-panel,
+.glass,
+.plan-card,
+.feature-card,
+.stock-card,
+.testimonial,
+.faq__item,
+.inner-page__grid,
+.inner-page__grid > *,
+.hero__container,
+.hero__container > *,
+.compare__wrapper,
+.dashboard-mockup,
+.cta__card,
+.footer__grid,
+.footer__grid > *,
+.admin-stock__layout > *,
+.admin-news__layout > *,
+.admin-settings-grid,
+.admin-settings-grid > *,
+.contact-grid,
+.contact-grid > * {
+  min-width: 0;
+}
+
+/* --- 2. Long words / URLs should not blow out cards --- */
+.plan-card,
+.feature-card,
+.stock-card,
+.testimonial,
+.faq__item p,
+.client-panel,
+.admin-panel,
+.contact-card,
+.glass p,
+.glass h2,
+.glass h3,
+.client-list__item,
+.order-modal__product,
+.news-popup__title,
+.news-popup__body,
+.admin-news__item,
+.compare__table td,
+.compare__table th {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+/* --- 3. Fluid typography (only for ones not already clamp'd) --- */
+.hero__subtitle {
+  font-size: clamp(0.95rem, 2.4vw, 1.15rem);
+}
+.page-hero__desc,
+.section-desc {
+  font-size: clamp(0.95rem, 2.2vw, 1.1rem);
+}
+.cta__card p {
+  font-size: clamp(0.95rem, 2.2vw, 1.05rem);
+}
+.stat-item__number {
+  font-size: clamp(1.9rem, 6vw, 2.8rem);
+}
+.stat-item__suffix {
+  font-size: clamp(1.1rem, 3vw, 1.5rem);
+}
+.stat-item__label {
+  font-size: clamp(0.82rem, 2vw, 0.95rem);
+}
+.stock-card__qty-num {
+  font-size: clamp(2rem, 6vw, 3rem);
+}
+.client-stat-card__value,
+.admin-stat-card__value {
+  font-size: clamp(1.4rem, 4vw, 2rem);
+  overflow-wrap: anywhere;
+}
+.client-topbar h1,
+.admin-topbar h1 {
+  font-size: clamp(1.4rem, 4vw, 2rem);
+}
+.client-topbar p,
+.admin-topbar p {
+  font-size: clamp(0.85rem, 2vw, 1rem);
+}
+.auth-form__title,
+.auth-page__title {
+  font-size: clamp(1.5rem, 5vw, 2.2rem);
+}
+
+/* --- 4. Page hero & section paddings shrink on phones --- */
+@media (max-width: 768px) {
+  .page-hero {
+    padding: calc(var(--header-height) + 32px) 0 36px;
+  }
+  .page-hero__title {
+    font-size: clamp(1.55rem, 7vw, 2.2rem);
+  }
+  .page-hero__desc {
+    padding: 0 8px;
+  }
+  .inner-page {
+    padding: 36px 0 60px;
+  }
+  .inner-page__grid {
+    gap: 28px;
+  }
+  section {
+    padding: 56px 0;
+  }
+  .cta {
+    padding: 36px 0 60px;
+  }
+  .cta__card {
+    padding: 40px 22px;
+  }
+  .client-main,
+  .admin-main {
+    padding: 18px 14px;
+  }
+  .client-topbar,
+  .admin-topbar {
+    padding: 12px 0 16px;
+    gap: 12px;
+  }
+  .client-stat-card,
+  .admin-stat-card {
+    padding: 18px;
+  }
+  .glass {
+    border-radius: 14px;
+  }
+}
+
+@media (max-width: 480px) {
+  .container {
+    padding: 0 14px;
+  }
+  section {
+    padding: 44px 0;
+  }
+  .cta__card {
+    padding: 32px 18px;
+  }
+  .cta__card h2 {
+    font-size: clamp(1.4rem, 6vw, 1.8rem);
+  }
+  .hero {
+    padding-top: calc(var(--header-height) + 24px);
+    padding-bottom: 40px;
+  }
+  .hero__subtitle {
+    margin-bottom: 24px;
+  }
+  .hero__trust {
+    gap: 14px;
+  }
+  .dashboard-mockup {
+    width: 100%;
+  }
+  .auth-page__panel--form,
+  .auth-form {
+    padding: 26px 20px !important;
+  }
+  .auth-form__field input,
+  .auth-form__field select,
+  .auth-form__field textarea {
+    padding: 12px 14px;
+    font-size: 0.95rem;
+  }
+  .btn {
+    min-height: 44px;
+  }
+  .btn--sm {
+    min-height: 38px;
+  }
+}
+
+@media (max-width: 380px) {
+  .container {
+    padding: 0 12px;
+  }
+  .hero__title {
+    font-size: clamp(1.55rem, 9vw, 2rem);
+  }
+  .page-hero__title {
+    font-size: clamp(1.4rem, 8vw, 1.9rem);
+  }
+  .section-title {
+    font-size: clamp(1.35rem, 7vw, 1.8rem);
+  }
+  .stat-item__number {
+    font-size: clamp(1.7rem, 8vw, 2.2rem);
+  }
+  .stock-card__qty-num {
+    font-size: clamp(1.8rem, 8vw, 2.4rem);
+  }
+  .client-topbar h1,
+  .admin-topbar h1 {
+    font-size: clamp(1.25rem, 6vw, 1.6rem);
+  }
+  .footer__brand p {
+    max-width: 100%;
+  }
+}
+
+/* --- 5. Tables: ensure every freestanding table inside panels scrolls --- */
+.client-panel > table,
+.admin-panel > table {
+  display: block;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 768px) {
+  .compare__table { min-width: 600px; }
+  .client-table,
+  .admin-stock-table,
+  .admin-order-table {
+    min-width: 560px;
+  }
+  .client-table-wrap,
+  .admin-stock-table-wrap,
+  .admin-order-table-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    border-radius: var(--radius);
+  }
+}
+
+/* --- 6. Buttons: full-width on tiny screens to avoid text overflow --- */
+@media (max-width: 480px) {
+  .btn--block,
+  .auth-form .btn,
+  .order-modal__actions .btn {
+    width: 100%;
+  }
+  .hero__cta,
+  .cta__card .hero__cta {
+    width: 100%;
+  }
+  .hero__cta .btn {
+    width: 100%;
+    max-width: 100%;
+  }
+}
+
+/* --- 7. Admin/client toolbars wrap cleanly on small screens --- */
+.client-topbar,
+.admin-topbar,
+.stock-toolbar,
+.admin-order-toolbar,
+.admin-stock-toolbar,
+.admin-ticket-toolbar {
+  flex-wrap: wrap;
+  gap: 12px;
+  min-width: 0;
+}
+.client-topbar > *,
+.admin-topbar > * {
+  min-width: 0;
+  flex-shrink: 1;
+}
+
+/* --- 8. Forms inside grid panels do not overflow --- */
+.auth-form__field,
+.admin-news__settings-grid > .auth-form__field {
+  min-width: 0;
+}
+.auth-form__field input,
+.auth-form__field select,
+.auth-form__field textarea {
+  min-width: 0;
+  max-width: 100%;
+}
+
+/* --- 9. Dashboard mockup, hero visual: scale + cap --- */
+.hero__dashboard,
+.dashboard-mockup,
+.hero__visual {
+  max-width: 100%;
+  min-width: 0;
+}
+
+@media (max-width: 640px) {
+  .dashboard-mockup__sidebar {
+    display: none;
+  }
+  .dashboard-mockup__main {
+    width: 100%;
+  }
+}
+
+/* --- 10. Modal: never wider than screen, scroll inside if tall --- */
+.order-modal,
+.news-popup,
+.order-modal--solid {
+  max-width: min(100% - 24px, 460px);
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
+}
+
+/* --- 11. Live chat widget never blocks small screens --- */
+@media (max-width: 480px) {
+  .chat-widget {
+    width: calc(100vw - 24px);
+    right: 12px;
+    left: auto;
+    max-width: 360px;
+  }
+  .chat-widget__toggle {
+    right: 16px;
+    bottom: 16px;
+  }
+}
+
+/* --- 12. Footer responsiveness on small phones --- */
+@media (max-width: 480px) {
+  .footer {
+    padding: 48px 0 28px;
+  }
+  .footer__grid {
+    gap: 24px;
+  }
+  .footer__brand p {
+    margin-bottom: 14px;
+  }
+  .footer__contact {
+    margin-bottom: 14px;
+  }
+}
+
+/* --- 13. Lists, cards inside client/admin panels: scroll-safe --- */
+.client-panel,
+.admin-panel {
+  max-width: 100%;
+}
+.client-list,
+.admin-list,
+.admin-order-list {
+  min-width: 0;
+  max-width: 100%;
+}
+
+/* --- 14. Cards never wider than their grid cell --- */
+.plan-card,
+.feature-card,
+.stock-card,
+.testimonial,
+.contact-card,
+.stat-item {
+  max-width: 100%;
+}
+
+/* --- 15. Touch target floor on interactive controls --- */
+@media (pointer: coarse) {
+  .nav__toggle,
+  .sidebar-mobile-toggle,
+  .sidebar-close,
+  .news-popup__close,
+  .btn,
+  .auth-form__field input[type="checkbox"],
+  .auth-form__field input[type="radio"] {
+    min-height: 40px;
+  }
+}
+
+/* --- 16. Prevent very long emails/URLs breaking auth & login forms --- */
+.auth-form,
+.auth-form__field,
+.auth-form__footer,
+.auth-form__error {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+.auth-page__panel--form {
+  max-width: 100%;
+  min-width: 0;
+}
+
+/* --- 17. Compare table on phones: each row label hugs left, scroll for rest --- */
+@media (max-width: 600px) {
+  .compare__table th,
+  .compare__table td {
+    padding: 12px 14px;
+  }
+}
+
+/* --- 18. Stock detail / admin stock layout collapses cleanly --- */
+@media (max-width: 1024px) {
+  .admin-stock__layout {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+}
+
+/* --- 19. Contact page grid stacks earlier on tablet --- */
+@media (max-width: 900px) {
+  .contact-grid {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+}
+
+/* --- 20. Ambient orbs/mesh quieter on small screens (perf + clarity) --- */
+@media (max-width: 480px) {
+  .page-ambient__orb--3,
+  .page-ambient__orb--4 {
+    display: none;
+  }
+  .page-ambient__mesh {
+    opacity: 0.6;
+  }
+}
+
+/* ===================================================================
+   ADMIN PANEL — full responsive pass (mobile + tablet).
+   Scoped to admin selectors only; client area untouched.
+   =================================================================== */
+
+/* --- Topbar: scale title, allow wrap, lighten paddings on mobile --- */
+.admin-topbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: flex-start;
+  justify-content: space-between;
+  min-width: 0;
+}
+.admin-topbar > * { min-width: 0; }
+
+.admin-topbar h1,
+.admin-stock__topbar h1 {
+  font-size: clamp(1.35rem, 4vw, 1.75rem);
+  line-height: 1.2;
+  margin-bottom: 4px;
+  overflow-wrap: anywhere;
+}
+.admin-topbar p,
+.admin-stock__topbar p {
+  font-size: clamp(0.85rem, 2.2vw, 0.95rem);
+}
+
+/* --- Panels: tighter padding on phones, never overflow --- */
+.admin-panel,
+.admin-stock__form-panel,
+.admin-stock__list-panel,
+.admin-news__form-panel,
+.admin-news__list-panel,
+.admin-news__settings-panel {
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+/* --- Stat cards: 4-col → 2-col → 1-col --- */
+@media (max-width: 900px) {
+  .admin-stats-grid,
+  .admin-stats-grid--3 {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 14px;
+  }
+}
+@media (max-width: 520px) {
+  .admin-stats-grid,
+  .admin-stats-grid--3 {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  .admin-stat-card { padding: 18px; }
+  .admin-stat-card__value {
+    font-size: clamp(1.4rem, 6vw, 2rem);
+  }
+}
+
+/* --- Quick grid (dashboard shortcuts) on phones --- */
+@media (max-width: 768px) {
+  .admin-quick-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  .admin-quick-card { padding: 16px; }
+}
+
+/* --- Form rows: 2-col → 1-col on small screens --- */
+@media (max-width: 640px) {
+  .admin-form-row,
+  .admin-ticket-controls,
+  .order-detail-grid,
+  .admin-news__settings-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* --- Settings grid: stack on tablet --- */
+@media (max-width: 900px) {
+  .admin-settings-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+}
+
+/* --- Tickets: list + detail stack, list height bounded --- */
+@media (max-width: 1024px) {
+  .admin-tickets-layout {
+    grid-template-columns: 1fr;
+    gap: 18px;
+  }
+}
+@media (max-width: 640px) {
+  .admin-tickets-layout {
+    gap: 14px;
+  }
+  .admin-ticket-items {
+    max-height: 360px;
+    overflow-y: auto;
+    padding-right: 4px;
+  }
+  .admin-ticket-item { padding: 12px 14px; }
+  .admin-ticket-detail__header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+  .admin-ticket-message { padding: 14px; }
+  .admin-ticket-filters {
+    width: 100%;
+  }
+  .admin-ticket-filters .btn {
+    flex: 1 1 calc(50% - 6px);
+    min-width: 0;
+  }
+}
+
+/* --- Stock admin: layout stack at tablet, tighter padding on phone --- */
+@media (max-width: 1024px) {
+  .admin-stock__layout {
+    grid-template-columns: 1fr;
+    gap: 18px;
+  }
+}
+@media (max-width: 640px) {
+  .admin-stock__form-panel,
+  .admin-stock__list-panel {
+    padding: 20px;
+  }
+  .admin-stock__topbar { flex-direction: column; align-items: flex-start; }
+}
+
+/* --- News admin layout already collapses; tighten paddings on phone --- */
+@media (max-width: 640px) {
+  .admin-news__form-panel,
+  .admin-news__list-panel,
+  .admin-news__settings-panel {
+    padding: 20px;
+  }
+}
+
+/* --- Admin tables: scroll horizontally, never break content character-by-character --- */
+.admin-stock-table-wrap,
+.admin-order-table-wrap,
+.admin-users-table-wrap {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border-radius: var(--radius);
+  min-width: 0;
+}
+
+.admin-stock-table,
+.admin-order-table,
+.admin-users-table {
+  width: 100%;
+  min-width: 920px;
+}
+
+/* Cells: normal word-wrap (not character-by-character) */
+.admin-stock-table th,
+.admin-stock-table td,
+.admin-order-table th,
+.admin-order-table td,
+.admin-users-table th,
+.admin-users-table td {
+  word-break: normal;
+  overflow-wrap: normal;
+  white-space: normal;
+}
+
+/* Short cells stay on one line — keeps table compact and readable */
+.admin-stock-table td:first-child,
+.admin-stock-table th:first-child,
+.admin-stock-table th:last-child,
+.admin-stock-table td:last-child {
+  white-space: nowrap;
+}
+
+/* Series / specs cell breaks only on whole words */
+.admin-stock-table td:nth-child(2),
+.admin-stock-table td:nth-child(3),
+.admin-stock-table td:nth-child(4) {
+  word-break: break-word;
+  overflow-wrap: break-word;
+}
+
+/* Status / actions never wrap */
+.status-badge,
+.admin-row-actions {
+  white-space: nowrap;
+}
+
+/* --- Toolbars (orders/tickets/stock) wrap cleanly on phones --- */
+.admin-order-toolbar,
+.admin-ticket-toolbar,
+.admin-stock-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  min-width: 0;
+}
+.admin-order-toolbar > *,
+.admin-ticket-toolbar > *,
+.admin-stock-toolbar > * {
+  min-width: 0;
+}
+@media (max-width: 640px) {
+  .admin-order-toolbar .ticket-search,
+  .admin-ticket-toolbar .ticket-search,
+  .admin-stock-toolbar .ticket-search {
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+  .admin-order-toolbar .btn,
+  .admin-ticket-toolbar .btn,
+  .admin-stock-toolbar .btn {
+    flex: 1 1 auto;
+  }
+}
+
+/* --- Admin main padding scales down on phones --- */
+@media (max-width: 768px) {
+  .admin-main {
+    padding: 18px 14px;
+  }
+  .admin-topbar { margin-bottom: 20px; }
+  .admin-panel {
+    padding: 20px;
+    margin-bottom: 18px;
+  }
+}
+@media (max-width: 480px) {
+  .admin-main {
+    padding: 14px 12px;
+  }
+  .admin-panel { padding: 16px; }
+}
+
+/* --- Admin login: never overflow --- */
+.admin-login-page {
+  padding: 32px 16px;
+  min-width: 0;
+}
+.admin-login-card {
+  width: 100%;
+  max-width: 420px;
+}
+
+/* --- Order detail / row actions wrap cleanly --- */
+.admin-row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+@media (max-width: 480px) {
+  .admin-row-actions .btn {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+}
+
+/* --- Order modal (admin) sized for mobile --- */
+@media (max-width: 480px) {
+  .order-modal,
+  .order-modal--solid {
+    width: calc(100vw - 24px);
+    max-width: 100%;
+    padding: 20px !important;
+  }
+  .order-modal__actions {
+    flex-wrap: wrap;
+  }
+  .order-modal__actions .btn {
+    flex: 1 1 100%;
+  }
+}
+
+/* --- Admin RAM plans row: more compact on tiny screens --- */
+@media (max-width: 480px) {
+  .admin-ram-plans__row {
+    padding: 10px;
+    gap: 6px 10px;
+  }
+  .admin-ram-plans__specs {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+  .admin-ram-plans__ram-input { width: 76px; }
+}
+
+/* --- Stock cell (multi-tier display) wraps --- */
+.admin-stock-ram-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.admin-stock-ram-cell strong { overflow-wrap: anywhere; }
+
+/* --- Order detail grid stacks cleanly --- */
+@media (max-width: 640px) {
+  .order-detail-box { padding: 14px; }
+  .order-detail-box li {
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+}
+
+/* --- Admin form (auth-form) inputs full-width safety --- */
+.admin-stock__form-panel .auth-form__field,
+.admin-news__form-panel .auth-form__field,
+.admin-news__settings-panel .auth-form__field {
+  min-width: 0;
+}
+.admin-stock__form-panel .auth-form__field input,
+.admin-stock__form-panel .auth-form__field select,
+.admin-stock__form-panel .auth-form__field textarea {
+  max-width: 100%;
+  min-width: 0;
+}
+
+/* --- Admin headings inside panels stay readable on mobile --- */
+.admin-panel h2,
+.admin-stock__form-panel h2,
+.admin-stock__list-panel h2,
+.admin-news__form-panel h2,
+.admin-news__list-panel h2,
+.admin-news__settings-panel h2 {
+  font-size: clamp(1rem, 3vw, 1.15rem);
+  overflow-wrap: anywhere;
+}
+
