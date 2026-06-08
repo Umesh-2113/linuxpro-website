@@ -16,6 +16,7 @@ import {
   updateNewsPopupSettings,
   type NewsPopupSettings,
 } from "@/lib/news-settings";
+import { siteContact } from "@/lib/contact";
 
 const variantOptions: NewsVariant[] = ["info", "update", "promo", "warning"];
 
@@ -228,7 +229,7 @@ export function AdminNewsPanel() {
                 onChange={(e) =>
                   setPopupSettings((s) => ({ ...s, contactEmail: e.target.value }))
                 }
-                placeholder="helpdesk@linuxpro.in"
+                placeholder={siteContact.email}
               />
             </div>
           </div>

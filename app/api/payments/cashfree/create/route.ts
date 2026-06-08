@@ -3,6 +3,7 @@ import {
   cashfreeCreateOrder,
   getAppBaseUrl,
 } from "@/lib/cashfree-server";
+import { getSiteDomain } from "@/lib/site";
 
 export async function POST(req: Request) {
   try {
@@ -40,7 +41,7 @@ export async function POST(req: Request) {
       customer_details: {
         customer_id: String(customer_id),
         customer_name: String(customer_name || "Customer"),
-        customer_email: String(customer_email || "customer@linuxpro.com"),
+        customer_email: String(customer_email || `customer@${getSiteDomain()}`),
         customer_phone: String(customer_phone),
       },
       order_meta: {

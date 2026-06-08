@@ -14,7 +14,7 @@ export function AdminSettingsPanel() {
         <section className="admin-panel glass">
           <h2>Admin Account</h2>
           <ul className="inner-facts">
-            <li><span>Email</span><strong>admin@linuxpro.com</strong></li>
+            <li><span>Email</span><strong>skodia.in@gmail.com</strong></li>
             <li><span>Role</span><strong>Super Admin</strong></li>
             <li><span>Panel Version</span><strong>1.0.0</strong></li>
           </ul>

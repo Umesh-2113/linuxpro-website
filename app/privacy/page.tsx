@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { MarketingLayout } from "@/components/layouts/MarketingLayout";
 import { PageHero } from "@/components/PageHero";
 import { siteContact } from "@/lib/contact";
+import { getSiteDomain } from "@/lib/site";
 
 export const metadata: Metadata = {
   title: "Privacy Policy — LinuxPro",
@@ -12,6 +13,8 @@ export const metadata: Metadata = {
 const LAST_UPDATED = "8 June 2026";
 
 export default function PrivacyPage() {
+  const siteDomain = getSiteDomain();
+
   return (
     <MarketingLayout>
       <PageHero
@@ -29,7 +32,7 @@ export default function PrivacyPage() {
             <p>
               LinuxPro Technologies Pvt. Ltd. (&ldquo;LinuxPro&rdquo;, &ldquo;we&rdquo;,
               &ldquo;us&rdquo;, or &ldquo;our&rdquo;) operates{" "}
-              <strong>linuxpro.in</strong> and provides VPS, Linux, proxy, and dedicated
+              <strong>{siteDomain}</strong> and provides VPS, Linux, proxy, and dedicated
               server hosting services. This Privacy Policy explains what personal
               information we collect, how we use it, and the rights you have under the
               Information Technology Act, 2000, IT Rules, 2011, and the Digital Personal
@@ -109,7 +112,7 @@ export default function PrivacyPage() {
             <h2>6. Security</h2>
             <p>
               Passwords are stored hashed. Card details are tokenised by Cashfree under
-              PCI-DSS Level 1 standards. All traffic to linuxpro.in is encrypted with
+              PCI-DSS Level 1 standards. All traffic to {siteDomain} is encrypted with
               HTTPS/TLS.
             </p>
 
@@ -145,7 +148,7 @@ export default function PrivacyPage() {
             <h2>10. Changes to This Policy</h2>
             <p>
               We may update this Privacy Policy from time to time. The latest version
-              will always be available at <strong>linuxpro.in/privacy</strong> with the
+              will always be available at <strong>{siteDomain}/privacy</strong> with the
               &ldquo;Last updated&rdquo; date.
             </p>
 

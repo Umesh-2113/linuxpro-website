@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { MarketingLayout } from "@/components/layouts/MarketingLayout";
 import { PageHero } from "@/components/PageHero";
 import { siteContact } from "@/lib/contact";
+import { getSiteDomain } from "@/lib/site";
 
 export const metadata: Metadata = {
   title: "Terms & Conditions — LinuxPro",
@@ -12,6 +13,8 @@ export const metadata: Metadata = {
 const LAST_UPDATED = "8 June 2026";
 
 export default function TermsPage() {
+  const siteDomain = getSiteDomain();
+
   return (
     <MarketingLayout>
       <PageHero
@@ -28,7 +31,7 @@ export default function TermsPage() {
             <h2>1. Acceptance of Terms</h2>
             <p>
               By accessing, registering on, or purchasing from{" "}
-              <strong>linuxpro.in</strong> (the &ldquo;Service&rdquo;), you agree to be
+              <strong>{siteDomain}</strong> (the &ldquo;Service&rdquo;), you agree to be
               bound by these Terms &amp; Conditions and our Privacy Policy. If you do
               not agree, do not use the Service.
             </p>
