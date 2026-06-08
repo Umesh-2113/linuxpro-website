@@ -69,6 +69,12 @@ function clearMongoUnavailable(): void {
   if (existsSync(MONGO_UNAVAILABLE_FILE)) unlinkSync(MONGO_UNAVAILABLE_FILE);
 }
 
+export function hasMongoEnv(): boolean {
+  return Boolean(
+    process.env.MONGODB_URI?.trim() || process.env.MONGODB_DIRECT_URI?.trim()
+  );
+}
+
 function getMongoUriCandidates(): string[] {
   const uris: string[] = [];
   const direct = process.env.MONGODB_DIRECT_URI?.trim();

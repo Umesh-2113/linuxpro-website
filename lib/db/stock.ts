@@ -4,7 +4,7 @@ import {
   type StockType,
 } from "@/lib/stock";
 import { dbGetOrders } from "@/lib/db/orders";
-import { getCollection } from "@/lib/mongodb";
+import { getCollection, hasMongoEnv } from "@/lib/mongodb";
 import { ensureSeeded } from "@/lib/db/seed";
 
 function normalizeItem(item: StockItem): StockItem {
@@ -70,22 +70,28 @@ export async function dbGetStockByType(type: StockType | "all"): Promise<StockIt
 
 /** Top-selling stock by paid order quantity; fills with in-stock items if fewer sales exist. */
 export async function dbGetTopSellingStock(limit = 4): Promise<StockItem[]> {
-  const [items, orders] = await Promise.all([dbGetStock(), dbGetOrders()]);
-  if (items.length === 0) return [];
+  if (!hasMongoEnv()) return [];
 
-  const sales = new Map<string, number>();
-  for (const order of orders) {
-    if (order.paymentStatus !== "received") continue;
-    sales.set(order.stockId, (sales.get(order.stockId) ?? 0) + order.quantity);
+  try {
+    const [items, orders] = await Promise.all([dbGetStock(), dbGetOrders()]);
+    if (items.length === 0) return [];
+
+    const sales = new Map<string, number>();
+    for (const order of orders) {
+      if (order.paymentStatus !== "received") continue;
+      sales.set(order.stockId, (sales.get(order.stockId) ?? 0) + order.quantity);
+    }
+
+    const ranked = [...items].sort((a, b) => {
+      const soldDiff = (sales.get(b.id) ?? 0) - (sales.get(a.id) ?? 0);
+      if (soldDiff !== 0) return soldDiff;
+      if (a.quantity <= 0 && b.quantity > 0) return 1;
+      if (b.quantity <= 0 && a.quantity > 0) return -1;
+      return b.quantity - a.quantity;
+    });
+
+    return ranked.slice(0, limit);
+  } catch {
+    return [];
   }
-
-  const ranked = [...items].sort((a, b) => {
-    const soldDiff = (sales.get(b.id) ?? 0) - (sales.get(a.id) ?? 0);
-    if (soldDiff !== 0) return soldDiff;
-    if (a.quantity <= 0 && b.quantity > 0) return 1;
-    if (b.quantity <= 0 && a.quantity > 0) return -1;
-    return b.quantity - a.quantity;
-  });
-
-  return ranked.slice(0, limit);
 }
