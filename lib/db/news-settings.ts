@@ -1,4 +1,4 @@
-import { getDb } from "@/lib/mongodb";
+import { getCollection } from "@/lib/mongodb";
 import {
   defaultNewsPopupSettings,
   type NewsPopupSettings,
@@ -24,8 +24,7 @@ function normalizeSettings(doc: Partial<SettingsDoc> | null): NewsPopupSettings 
 }
 
 async function collection() {
-  const db = await getDb();
-  return db.collection<SettingsDoc>("site_settings");
+  return getCollection<SettingsDoc>("site_settings");
 }
 
 export async function dbGetNewsPopupSettings(): Promise<NewsPopupSettings> {

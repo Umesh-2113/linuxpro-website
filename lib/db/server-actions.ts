@@ -1,9 +1,8 @@
 import type { ServerActionRequest } from "@/lib/server-actions";
-import { getDb } from "@/lib/mongodb";
+import { getCollection } from "@/lib/mongodb";
 
 async function collection() {
-  const db = await getDb();
-  return db.collection<ServerActionRequest>("server_actions");
+  return getCollection<ServerActionRequest>("server_actions");
 }
 
 function normalizeAction(action: ServerActionRequest): ServerActionRequest {

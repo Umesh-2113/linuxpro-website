@@ -1,5 +1,5 @@
 import type { SupportTicket, TicketPriority, TicketReply } from "@/lib/tickets";
-import { getDb } from "@/lib/mongodb";
+import { getCollection } from "@/lib/mongodb";
 import { ensureSeeded } from "@/lib/db/seed";
 
 function migrateTicket(raw: Partial<SupportTicket> & { id: string }): SupportTicket {
@@ -43,8 +43,7 @@ function migrateTicket(raw: Partial<SupportTicket> & { id: string }): SupportTic
 
 async function collection() {
   await ensureSeeded();
-  const db = await getDb();
-  return db.collection<SupportTicket>("tickets");
+  return getCollection<SupportTicket>("tickets");
 }
 
 export async function dbGetTickets(): Promise<SupportTicket[]> {

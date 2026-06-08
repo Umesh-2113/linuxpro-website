@@ -1,10 +1,9 @@
 import { getOrderSubtitle, type Order } from "@/lib/orders";
 import type { UserServer } from "@/lib/user-servers";
-import { getDb } from "@/lib/mongodb";
+import { getCollection } from "@/lib/mongodb";
 
 async function collection() {
-  const db = await getDb();
-  return db.collection<UserServer>("servers");
+  return getCollection<UserServer>("servers");
 }
 
 function serverNameFromOrder(order: Order, serverId: string, orderId: string): string {

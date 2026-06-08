@@ -4,7 +4,7 @@ import {
   type StockType,
 } from "@/lib/stock";
 import { dbGetOrders } from "@/lib/db/orders";
-import { getDb } from "@/lib/mongodb";
+import { getCollection } from "@/lib/mongodb";
 import { ensureSeeded } from "@/lib/db/seed";
 
 function normalizeItem(item: StockItem): StockItem {
@@ -20,8 +20,7 @@ function normalizeItem(item: StockItem): StockItem {
 
 async function collection() {
   await ensureSeeded();
-  const db = await getDb();
-  return db.collection<StockItem>("stock");
+  return getCollection<StockItem>("stock");
 }
 
 export async function dbGetStock(): Promise<StockItem[]> {

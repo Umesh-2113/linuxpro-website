@@ -1,4 +1,4 @@
-import { getDb } from "@/lib/mongodb";
+import { getCollection } from "@/lib/mongodb";
 import type { NewsInput, NewsItem, NewsVariant } from "@/lib/news";
 
 const VALID_VARIANTS: NewsVariant[] = ["info", "update", "promo", "warning"];
@@ -21,8 +21,7 @@ function normalizeItem(item: NewsItem): NewsItem {
 }
 
 async function collection() {
-  const db = await getDb();
-  return db.collection<NewsItem>("news");
+  return getCollection<NewsItem>("news");
 }
 
 export async function dbGetNews(): Promise<NewsItem[]> {

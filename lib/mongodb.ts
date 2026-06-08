@@ -1,7 +1,13 @@
 import dns from "dns";
 import { existsSync, writeFileSync, unlinkSync, mkdirSync } from "fs";
 import path from "path";
-import { MongoClient, type Db, type MongoClientOptions } from "mongodb";
+import {
+  MongoClient,
+  type Collection,
+  type Db,
+  type Document,
+  type MongoClientOptions,
+} from "mongodb";
 import { getLocalDb, isUsingLocalDb } from "@/lib/local-db";
 
 dns.setDefaultResultOrder("ipv4first");
@@ -139,6 +145,14 @@ async function getMongoDb(): Promise<Db> {
   const connected = await getClientPromise();
   const dbName = process.env.MONGODB_DB_NAME || "linuxpro";
   return connected.db(dbName);
+}
+
+/** Typed collection accessor (works for Atlas and local file DB). */
+export async function getCollection<T extends Document>(
+  name: string
+): Promise<Collection<T>> {
+  const db = await getDb();
+  return db.collection(name) as Collection<T>;
 }
 
 export async function getDb(): Promise<Db | ReturnType<typeof getLocalDb>> {

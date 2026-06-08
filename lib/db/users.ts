@@ -1,6 +1,6 @@
 import { createHash } from "crypto";
 import type { AuthProvider, RegisteredUser } from "@/lib/users";
-import { getDb } from "@/lib/mongodb";
+import { getCollection } from "@/lib/mongodb";
 
 function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
@@ -11,8 +11,7 @@ function hashPassword(password: string): string {
 }
 
 async function collection() {
-  const db = await getDb();
-  return db.collection<RegisteredUser>("users");
+  return getCollection<RegisteredUser>("users");
 }
 
 export async function dbGetUsers(): Promise<RegisteredUser[]> {

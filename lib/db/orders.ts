@@ -15,7 +15,7 @@ import {
   type StockType,
 } from "@/lib/stock";
 import type { FulfillmentStatus, Order, PaymentStatus } from "@/lib/orders";
-import { getDb } from "@/lib/mongodb";
+import { getCollection } from "@/lib/mongodb";
 
 function migrateOrder(raw: Partial<Order> & { id: string }): Order {
   return {
@@ -54,8 +54,7 @@ function migrateOrder(raw: Partial<Order> & { id: string }): Order {
 }
 
 async function collection() {
-  const db = await getDb();
-  return db.collection<Order>("orders");
+  return getCollection<Order>("orders");
 }
 
 export async function dbGetOrders(): Promise<Order[]> {
