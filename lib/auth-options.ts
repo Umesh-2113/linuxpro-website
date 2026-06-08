@@ -111,18 +111,23 @@ export const authOptions: NextAuthOptions = {
       const provider = mapOAuthProvider(account.provider);
       if (!provider) return false;
 
-      const result = await dbOAuthSignIn({
-        email: user.email,
-        name: user.name || user.email.split("@")[0],
-        avatarUrl: user.image ?? undefined,
-        provider,
-      });
+      try {
+        const result = await dbOAuthSignIn({
+          email: user.email,
+          name: user.name || user.email.split("@")[0],
+          avatarUrl: user.image ?? undefined,
+          provider,
+        });
 
-      if (!result.ok) {
-        return `/login?authError=${result.error ?? "oauth_denied"}`;
+        if (!result.ok) {
+          return `/login?authError=${result.error ?? "oauth_denied"}`;
+        }
+
+        return true;
+      } catch (error) {
+        console.error("[NextAuth signIn] OAuth database error:", error);
+        return "/login?authError=db_error";
       }
-
-      return true;
     },
     async redirect({ url, baseUrl }) {
       if (url.startsWith("/")) return `${baseUrl}${url}`;

@@ -20,11 +20,23 @@ function mapAuthError(code: string | null): string {
       return "This email is registered with a different social provider. Use the same button you signed up with.";
     case "oauth_denied":
       return "Social sign-in was denied. Please try again.";
+    case "db_error":
+      return "Could not save your account. Check MongoDB Atlas allows your server IP (165.99.222.214).";
+    case "OAuthCallback":
+    case "Callback":
+      return "Google sign-in callback failed. Restart the app after updating .env, then try again.";
+    case "Configuration":
+      return "Auth is misconfigured. Set NEXTAUTH_URL, NEXTAUTH_SECRET, and AUTH_TRUST_HOST=true on the server.";
+    case "OAuthSignin":
+    case "OAuthCreateAccount":
+      return "Could not start Google sign-in. Check GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in .env.";
+    case "AccessDenied":
+      return "Sign-in was blocked. If the Google app is in Testing mode, add your Gmail as a test user.";
     case "CredentialsSignin":
       return "Invalid email or password. Use the same credentials you registered with.";
     default:
       return code
-        ? "Sign-in failed. Please try again."
+        ? `Sign-in failed (${code}). Check server logs: pm2 logs linuxpro`
         : "";
   }
 }
