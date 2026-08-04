@@ -43,7 +43,7 @@ export const clientNav = [
   { href: "/client/servers", label: "Servers", icon: "server" },
   { href: "/client/ip-stock", label: "IP Stock Available", icon: "stock" },
   { href: "/client/orders", label: "Manage Orders", icon: "orders" },
-  { href: "/client/billing", label: "Billing", icon: "card" },
+  { href: "/client/wallet", label: "My Wallet", icon: "wallet" },
   { href: "/client/support", label: "Support", icon: "chat" },
   { href: "/client/settings", label: "Settings", icon: "settings" },
 ];

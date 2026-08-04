@@ -3,7 +3,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { getUser } from "@/lib/auth";
 import { startCashfreeCheckout } from "@/lib/cashfree-client";
-import { createOrder } from "@/lib/orders";
+import { createOrder, confirmWalletPayment } from "@/lib/orders";
+import {
+  fetchWallet,
+  formatWalletAmount,
+  getWalletBalance,
+} from "@/lib/wallet";
 import {
   applyPromoEntry,
   getProductSeriesName,
@@ -45,6 +50,8 @@ export function BuyStockModal({ item, onClose, onSuccess }: Props) {
     value: number;
   } | null>(null);
   const [promoMsg, setPromoMsg] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState<"cashfree" | "wallet">("cashfree");
+  const [walletBalance, setWalletBalance] = useState(0);
 
   const selectedPlan = getRamPlan(item, selectedRamGb);
   const unitPrice = getStockPrice(item, selectedRamGb);
@@ -87,6 +94,13 @@ export function BuyStockModal({ item, onClose, onSuccess }: Props) {
   };
 
   useEffect(() => {
+    fetchWallet().then((data) => setWalletBalance(data.balance));
+    const onWalletUpdate = () => setWalletBalance(getWalletBalance());
+    window.addEventListener("wallet-updated", onWalletUpdate);
+    return () => window.removeEventListener("wallet-updated", onWalletUpdate);
+  }, []);
+
+  useEffect(() => {
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     return () => {
@@ -103,8 +117,15 @@ export function BuyStockModal({ item, onClose, onSuccess }: Props) {
     }
 
     const phoneDigits = phone.replace(/\D/g, "");
-    if (phoneDigits.length < 10) {
+    if (paymentMethod === "cashfree" && phoneDigits.length < 10) {
       setError("Enter a valid 10-digit phone number for payment.");
+      return;
+    }
+
+    if (paymentMethod === "wallet" && walletBalance < total) {
+      setError(
+        `Insufficient wallet balance. You have ${formatWalletAmount(walletBalance)} but need ${formatWalletAmount(total)}.`
+      );
       return;
     }
 
@@ -116,7 +137,7 @@ export function BuyStockModal({ item, onClose, onSuccess }: Props) {
       userName: user.name,
       userEmail: user.email,
       customerPhone: phoneDigits,
-      paymentGateway: "cashfree",
+      paymentGateway: paymentMethod,
       selectedRamGb: item.type !== "proxy" ? selectedRamGb : undefined,
       promoCode: appliedPromo?.code,
     });
@@ -124,6 +145,18 @@ export function BuyStockModal({ item, onClose, onSuccess }: Props) {
     if (!order) {
       setLoading(false);
       setError("Not enough stock available. Please try a lower quantity.");
+      return;
+    }
+
+    if (paymentMethod === "wallet") {
+      const paid = await confirmWalletPayment(order.id);
+      setLoading(false);
+      if (!paid) {
+        setError("Wallet payment failed. Please try again or use Cashfree.");
+        return;
+      }
+      await fetchWallet();
+      onSuccess(order.id);
       return;
     }
 
@@ -330,16 +363,59 @@ export function BuyStockModal({ item, onClose, onSuccess }: Props) {
         </div>
 
         <div className="auth-form__field">
-          <label htmlFor="order-phone">Phone (for Cashfree)</label>
-          <input
-            id="order-phone"
-            type="tel"
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-            placeholder="10-digit mobile number"
-            maxLength={15}
-          />
+          <label>Payment method</label>
+          <div className="order-payment-picker" role="radiogroup" aria-label="Payment method">
+            <button
+              type="button"
+              role="radio"
+              aria-checked={paymentMethod === "cashfree"}
+              className={`order-payment-picker__option${
+                paymentMethod === "cashfree" ? " order-payment-picker__option--active" : ""
+              }`}
+              onClick={() => setPaymentMethod("cashfree")}
+            >
+              <span className="order-payment-picker__title">Cashfree</span>
+              <span className="order-payment-picker__sub">Card, UPI, Netbanking</span>
+            </button>
+            <button
+              type="button"
+              role="radio"
+              aria-checked={paymentMethod === "wallet"}
+              className={`order-payment-picker__option${
+                paymentMethod === "wallet" ? " order-payment-picker__option--active" : ""
+              }`}
+              onClick={() => setPaymentMethod("wallet")}
+            >
+              <span className="order-payment-picker__title">Wallet</span>
+              <span className="order-payment-picker__sub">
+                Balance: {formatWalletAmount(walletBalance)}
+              </span>
+            </button>
+          </div>
         </div>
+
+        {paymentMethod === "cashfree" && (
+          <div className="auth-form__field">
+            <label htmlFor="order-phone">Phone (for Cashfree)</label>
+            <input
+              id="order-phone"
+              type="tel"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              placeholder="10-digit mobile number"
+              maxLength={15}
+            />
+          </div>
+        )}
+
+        {paymentMethod === "wallet" && walletBalance < total && (
+          <div className="order-modal__wallet-warn">
+            Low balance —{" "}
+            <a href="/client/wallet" className="order-modal__wallet-link">
+              add money to wallet
+            </a>
+          </div>
+        )}
 
         <div className="order-modal__total">
           <span>Total amount</span>
@@ -356,7 +432,9 @@ export function BuyStockModal({ item, onClose, onSuccess }: Props) {
         {error && <div className="auth-form__error">{error}</div>}
 
         <p className="order-modal__note">
-          {process.env.NEXT_PUBLIC_CASHFREE_MODE === "production" ? (
+          {paymentMethod === "wallet" ? (
+            <>Amount will be deducted from your wallet instantly. No redirect needed.</>
+          ) : process.env.NEXT_PUBLIC_CASHFREE_MODE === "production" ? (
             <>You will be redirected to Cashfree secure checkout. Payments are processed in INR.</>
           ) : (
             <>
@@ -375,9 +453,15 @@ export function BuyStockModal({ item, onClose, onSuccess }: Props) {
             type="button"
             className="btn btn--primary"
             onClick={handleConfirm}
-            disabled={loading}
+            disabled={loading || (paymentMethod === "wallet" && walletBalance < total)}
           >
-            {loading ? "Redirecting..." : "Pay with Cashfree"}
+            {loading
+              ? paymentMethod === "wallet"
+                ? "Processing..."
+                : "Redirecting..."
+              : paymentMethod === "wallet"
+                ? `Pay ${formatWalletAmount(total)} from Wallet`
+                : "Pay with Cashfree"}
           </button>
         </div>
       </div>

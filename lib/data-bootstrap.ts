@@ -1,4 +1,5 @@
 import { fetchOrders } from "@/lib/orders";
+import { fetchWallet } from "@/lib/wallet";
 import { fetchServerActions } from "@/lib/server-actions";
 import { fetchStock } from "@/lib/stock";
 import { fetchServers } from "@/lib/user-servers";
@@ -9,6 +10,7 @@ export async function bootstrapClientData(email?: string): Promise<void> {
   await Promise.all([
     fetchStock(),
     fetchOrders(email),
+    fetchWallet(),
     fetchServers(email),
     fetchTickets(email),
     fetchServerActions(email),

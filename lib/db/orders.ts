@@ -88,7 +88,7 @@ export async function dbCreateOrder(data: {
   userName: string;
   userEmail: string;
   customerPhone?: string;
-  paymentGateway?: "manual" | "cashfree";
+  paymentGateway?: "manual" | "cashfree" | "wallet";
   selectedRamGb?: number;
   promoCode?: string;
 }): Promise<Order | null> {

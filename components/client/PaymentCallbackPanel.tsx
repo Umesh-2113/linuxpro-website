@@ -3,7 +3,17 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { confirmCashfreePayment, fetchOrders, getOrderById, getOrderTitle } from "@/lib/orders";
+import {
+  confirmCashfreePayment,
+  fetchOrders,
+  getOrderById,
+  getOrderTitle,
+} from "@/lib/orders";
+import { confirmWalletTopup, fetchWallet } from "@/lib/wallet";
+
+function isWalletTopup(orderId: string): boolean {
+  return orderId.startsWith("WALLET-");
+}
 
 export function PaymentCallbackPanel() {
   const searchParams = useSearchParams();
@@ -12,6 +22,8 @@ export function PaymentCallbackPanel() {
     "loading"
   );
   const [message, setMessage] = useState("");
+  const [walletTopup, setWalletTopup] = useState(false);
+  const [creditedAmount, setCreditedAmount] = useState(0);
 
   useEffect(() => {
     if (!orderId) {
@@ -33,10 +45,21 @@ export function PaymentCallbackPanel() {
         }
 
         if (data.paid) {
-          await confirmCashfreePayment(orderId!, data.order_status);
-          await fetchOrders();
-          setStatus("success");
-          setMessage("Payment received successfully via Cashfree.");
+          if (isWalletTopup(orderId!)) {
+            const wallet = await confirmWalletTopup(orderId!, data.order_status);
+            setWalletTopup(true);
+            setCreditedAmount(Number(data.order_amount) || 0);
+            await fetchWallet();
+            setStatus("success");
+            setMessage(
+              `₹${(Number(data.order_amount) || wallet.balance).toLocaleString("en-IN")} added to your wallet. New balance: ₹${wallet.balance.toLocaleString("en-IN")}.`
+            );
+          } else {
+            await confirmCashfreePayment(orderId!, data.order_status);
+            await fetchOrders();
+            setStatus("success");
+            setMessage("Payment received successfully via Cashfree.");
+          }
         } else {
           setStatus("failed");
           setMessage(
@@ -76,30 +99,50 @@ export function PaymentCallbackPanel() {
   }
 
   if (status === "success") {
-    const order = orderId ? getOrderById(orderId) : null;
+    const order = !walletTopup && orderId ? getOrderById(orderId) : null;
     return (
       <div className="payment-callback glass payment-callback--success">
         <div className="payment-callback__icon">✓</div>
-        <h2>Payment Successful</h2>
+        <h2>{walletTopup ? "Wallet Top-up Successful" : "Payment Successful"}</h2>
         <p>{message}</p>
+        {walletTopup && creditedAmount > 0 && (
+          <p className="payment-callback__product">
+            Added <strong>₹{creditedAmount.toLocaleString("en-IN")}</strong> to your wallet
+          </p>
+        )}
         {order && (
           <p className="payment-callback__product">
             IP <strong>{getOrderTitle(order)}</strong>
           </p>
         )}
         <p className="payment-callback__order">
-          Order: <strong>{orderId}</strong>
+          Reference: <strong>{orderId}</strong>
         </p>
-        <p className="payment-callback__hint">
-          Admin will deliver your server credentials soon. Track in Manage Orders.
-        </p>
+        {!walletTopup && (
+          <p className="payment-callback__hint">
+            Admin will deliver your server credentials soon. Track in Manage Orders.
+          </p>
+        )}
         <div className="payment-callback__actions">
-          <Link href="/client/orders" className="btn btn--primary">
-            Manage Orders
-          </Link>
-          <Link href="/client/servers" className="btn btn--outline">
-            My Servers
-          </Link>
+          {walletTopup ? (
+            <>
+              <Link href="/client/wallet" className="btn btn--primary">
+                View My Wallet
+              </Link>
+              <Link href="/client/ip-stock" className="btn btn--outline">
+                Buy IP Stock
+              </Link>
+            </>
+          ) : (
+            <>
+              <Link href="/client/orders" className="btn btn--primary">
+                Manage Orders
+              </Link>
+              <Link href="/client/servers" className="btn btn--outline">
+                My Servers
+              </Link>
+            </>
+          )}
         </div>
       </div>
     );
@@ -112,11 +155,14 @@ export function PaymentCallbackPanel() {
       <p>{message}</p>
       {orderId && (
         <p className="payment-callback__order">
-          Order: <strong>{orderId}</strong>
+          Reference: <strong>{orderId}</strong>
         </p>
       )}
       <div className="payment-callback__actions">
-        <Link href="/client/ip-stock" className="btn btn--primary">
+        <Link
+          href={walletTopup || isWalletTopup(orderId || "") ? "/client/wallet" : "/client/ip-stock"}
+          className="btn btn--primary"
+        >
           Try Again
         </Link>
         <Link href="/client/support" className="btn btn--outline">

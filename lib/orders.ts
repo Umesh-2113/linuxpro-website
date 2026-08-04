@@ -31,7 +31,7 @@ export type Order = {
   deliverIp: string;
   deliverUsername: string;
   deliverPassword: string;
-  paymentGateway: "manual" | "cashfree";
+  paymentGateway: "manual" | "cashfree" | "wallet";
   cashfreeOrderStatus: string;
   customerPhone: string;
   promoCode?: string;
@@ -130,7 +130,7 @@ export async function createOrder(data: {
   userName: string;
   userEmail: string;
   customerPhone?: string;
-  paymentGateway?: "manual" | "cashfree";
+  paymentGateway?: "manual" | "cashfree" | "wallet";
   selectedRamGb?: number;
   promoCode?: string;
 }): Promise<Order | null> {
@@ -224,6 +224,17 @@ export async function confirmCashfreePayment(
   }
 }
 
+export async function confirmWalletPayment(orderId: string): Promise<Order | null> {
+  try {
+    const updated = await apiPost<Order>(`/api/orders/${orderId}/wallet`, {});
+    cache = cache.map((o) => (o.id === orderId ? updated : o));
+    emitUpdate();
+    return updated;
+  } catch {
+    return null;
+  }
+}
+
 export async function deleteOrder(id: string): Promise<void> {
   await apiDelete(`/api/orders/${id}`);
   cache = cache.filter((o) => o.id !== id);
@@ -265,11 +276,17 @@ export const fulfillmentStatusLabels: Record<FulfillmentStatus, string> = {
 };
 
 export function getAdminPaymentLabel(order: Order): string {
+  if (order.paymentGateway === "wallet" && order.paymentStatus === "received") {
+    return "Payment Confirmed (Wallet)";
+  }
   if (order.paymentGateway === "cashfree" && order.paymentStatus === "received") {
     return "Payment Confirmed (Cashfree)";
   }
   if (order.paymentGateway === "cashfree" && order.paymentStatus === "pending") {
     return "Cashfree — Awaiting Payment";
+  }
+  if (order.paymentGateway === "wallet" && order.paymentStatus === "pending") {
+    return "Wallet — Awaiting Payment";
   }
   return paymentStatusLabels[order.paymentStatus];
 }

@@ -14,6 +14,11 @@ import {
 } from "@/lib/orders";
 import { getTicketsByUser } from "@/lib/tickets";
 import { getServersByUser, type UserServer } from "@/lib/user-servers";
+import {
+  fetchWallet,
+  formatWalletAmount,
+  getWalletBalance,
+} from "@/lib/wallet";
 import { stockTypeLabels } from "@/lib/stock";
 
 function powerLabel(state: UserServer["powerState"]) {
@@ -27,6 +32,7 @@ export function ClientDashboard() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [openTickets, setOpenTickets] = useState(0);
   const [userName, setUserName] = useState("there");
+  const [walletBalance, setWalletBalance] = useState(0);
 
   const load = useCallback(() => {
     const user = getUser();
@@ -34,20 +40,24 @@ export function ClientDashboard() {
     setUserName(user.name);
     setServers(getServersByUser(user.email));
     setOrders(getOrdersByUser(user.email));
+    setWalletBalance(getWalletBalance());
     setOpenTickets(
       getTicketsByUser(user.email).filter((t) => t.status !== "closed").length
     );
   }, []);
 
   useEffect(() => {
+    fetchWallet().then((data) => setWalletBalance(data.balance));
     load();
     window.addEventListener("servers-updated", load);
     window.addEventListener("orders-updated", load);
     window.addEventListener("tickets-updated", load);
+    window.addEventListener("wallet-updated", load);
     return () => {
       window.removeEventListener("servers-updated", load);
       window.removeEventListener("orders-updated", load);
       window.removeEventListener("tickets-updated", load);
+      window.removeEventListener("wallet-updated", load);
     };
   }, [load]);
 
@@ -98,6 +108,13 @@ export function ClientDashboard() {
         <div className="client-stat-card glass">
           <span className="client-stat-card__label">Active Orders</span>
           <span className="client-stat-card__value">{stats.activeOrders}</span>
+        </div>
+        <div className="client-stat-card glass client-stat-card--wallet">
+          <span className="client-stat-card__label">My Wallet</span>
+          <span className="client-stat-card__value">{formatWalletAmount(walletBalance)}</span>
+          <Link href="/client/wallet" className="btn btn--primary btn--sm">
+            Add Money
+          </Link>
         </div>
         <div className="client-stat-card glass">
           <span className="client-stat-card__label">Open Tickets</span>
