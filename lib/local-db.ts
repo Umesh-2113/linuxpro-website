@@ -87,16 +87,23 @@ class LocalCollection {
   find(filter: Doc = {}) {
     const self = this;
     let sortSpec: Record<string, 1 | -1> = {};
-    return {
+    let limitCount: number | null = null;
+    const cursor = {
       sort(spec: Record<string, 1 | -1>) {
         sortSpec = spec;
-        return this;
+        return cursor;
+      },
+      limit(count: number) {
+        limitCount = count;
+        return cursor;
       },
       async toArray(): Promise<Doc[]> {
         const matched = self.docs().filter((doc) => matchDoc(doc, filter));
-        return sortDocs(matched, sortSpec);
+        const sorted = sortDocs(matched, sortSpec);
+        return limitCount != null ? sorted.slice(0, limitCount) : sorted;
       },
     };
+    return cursor;
   }
 
   async findOne(filter: Doc): Promise<Doc | null> {
