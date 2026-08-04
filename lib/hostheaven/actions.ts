@@ -28,8 +28,12 @@ async function resolveVmId(server: UserServer): Promise<HostHeavenActionResult> 
   return { vmId, resolvedFromIp: true };
 }
 
-async function pickIsoId(vmId: number, reinstallOs?: ReinstallOsOption): Promise<number> {
-  const isos = await hostHeavenListIsos(vmId);
+async function pickIsoId(
+  vmId: number,
+  reinstallOs?: ReinstallOsOption,
+  serverIp?: string
+): Promise<number> {
+  const isos = await hostHeavenListIsos(vmId, serverIp);
   if (isos.length === 0) {
     throw new Error("No rebuild ISO templates available for this VM on HostHeaven.");
   }
@@ -63,11 +67,16 @@ export async function executeHostHeavenServerAction(
       await hostHeavenStopVm(vmId);
       return resolved;
     case "reinstall": {
-      const isoId = await pickIsoId(vmId, options?.reinstallOs);
+      const isoId = await pickIsoId(vmId, options?.reinstallOs, server.ip);
       await hostHeavenRebuildVm(vmId, isoId);
       const password = options?.newPassword?.trim();
       if (password) {
-        await hostHeavenChangePassword(vmId, password);
+        try {
+          await hostHeavenChangePassword(vmId, password);
+        } catch (error) {
+          // Rebuild can still be running; credentials are stored for the client anyway.
+          console.warn("[HostHeaven] password after rebuild:", error);
+        }
       }
       return resolved;
     }

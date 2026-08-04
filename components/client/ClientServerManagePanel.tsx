@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { getUser } from "@/lib/auth";
 import { CredentialRow } from "@/components/client/ServerCredentials";
-import { getServerById, type UserServer } from "@/lib/user-servers";
+import { getServerById, fetchServers, type UserServer } from "@/lib/user-servers";
 import { stockTypeLabels } from "@/lib/stock";
 import {
   actionStatusLabels,
@@ -115,23 +115,40 @@ export function ClientServerManagePanel({ serverId }: Props) {
       const user = getUser();
       if (!user) return;
 
-      await createServerAction({
-        serverId: server.id,
-        serverName: server.name,
-        serverIp: server.ip,
-        orderId: server.orderId,
-        userEmail: user.email,
-        userName: user.name,
-        action,
-        reinstallOs,
-      });
-      setShowReinstallModal(false);
-      const label =
-        action === "reinstall" && reinstallOs
-          ? `Reinstall (${reinstallOsLabels[reinstallOs]})`
-          : serverActionLabels[action];
-      setToast(`${label} request sent — our team will process it shortly.`);
-      load();
+      try {
+        const result = await createServerAction({
+          serverId: server.id,
+          serverName: server.name,
+          serverIp: server.ip,
+          orderId: server.orderId,
+          userEmail: user.email,
+          userName: user.name,
+          action,
+          reinstallOs,
+        });
+        setShowReinstallModal(false);
+        const label =
+          action === "reinstall" && reinstallOs
+            ? `Reinstall (${reinstallOsLabels[reinstallOs]})`
+            : serverActionLabels[action];
+
+        const viaApi = result.status === "completed";
+        if (viaApi) {
+          setToast(
+            action === "reinstall"
+              ? `${label} started via HostHeaven API — new credentials updated below.`
+              : `${label} completed via HostHeaven API.`
+          );
+          await fetchServers(user.email);
+          window.dispatchEvent(new Event("servers-updated"));
+        } else {
+          setToast(`${label} request sent — our team will process it shortly.`);
+        }
+        load();
+      } catch (err) {
+        setShowReinstallModal(false);
+        setToast(err instanceof Error ? err.message : "Action failed. Try again.");
+      }
     })();
   };
 
@@ -234,7 +251,9 @@ export function ClientServerManagePanel({ serverId }: Props) {
             </div>
 
             <p className="manage-modal-warning">
-              Admin will deliver new username and password after reinstall completes.
+              {server.provider === "hostheaven"
+                ? "HostHeaven API will rebuild the OS now. New username and password will appear in credentials below."
+                : "If this server is on HostHeaven, rebuild runs via API immediately. Otherwise admin will deliver new credentials."}
             </p>
 
             <div className="manage-modal-actions">
@@ -242,7 +261,7 @@ export function ClientServerManagePanel({ serverId }: Props) {
                 Cancel
               </button>
               <button type="button" className="btn btn--danger" onClick={handleReinstallConfirm}>
-                Request Reinstall
+                {server.provider === "hostheaven" ? "Reinstall via API" : "Confirm Reinstall"}
               </button>
             </div>
           </div>

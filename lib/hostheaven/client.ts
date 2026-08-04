@@ -457,13 +457,29 @@ function normalizeIso(entry: unknown): HostHeavenIso | null {
   return { id: Math.round(id), isoName, osType };
 }
 
-async function listUserIsos(): Promise<HostHeavenIso[]> {
+async function listUserIsos(serverIp?: string): Promise<HostHeavenIso[]> {
   const zones = await hostHeavenRequest<ZoneSummary[]>("/api/users/zones", { method: "GET" }, true, false);
-  const activeZone = zones.find((zone) => (zone.status ?? "ACTIVE").toUpperCase() === "ACTIVE") ?? zones[0];
-  if (!activeZone?.id) return [];
+  if (!Array.isArray(zones) || zones.length === 0) return [];
+
+  const activeZones = zones.filter((zone) => (zone.status ?? "ACTIVE").toUpperCase() === "ACTIVE");
+  const candidates = activeZones.length > 0 ? activeZones : zones;
+  const ip = (serverIp ?? "").trim();
+
+  let zone = candidates[0];
+  if (ip) {
+    const octets = ip.split(".");
+    const prefix3 = octets.length >= 3 ? `${octets[0]}.${octets[1]}.${octets[2]}` : "";
+    const prefix2 = octets.length >= 2 ? `${octets[0]}.${octets[1]}` : "";
+    zone =
+      candidates.find((z) => prefix3 && (z.name ?? "").includes(prefix3)) ??
+      candidates.find((z) => prefix2 && (z.name ?? "").includes(prefix2)) ??
+      candidates[0];
+  }
+
+  if (!zone?.id) return [];
 
   const isos = await hostHeavenRequest<unknown[]>(
-    `/api/users/zones/${activeZone.id}/isos`,
+    `/api/users/zones/${zone.id}/isos`,
     { method: "GET" },
     true,
     false
@@ -473,18 +489,18 @@ async function listUserIsos(): Promise<HostHeavenIso[]> {
   return isos.map(normalizeIso).filter((iso): iso is HostHeavenIso => iso !== null);
 }
 
-export async function hostHeavenListIsos(_vmId: number): Promise<HostHeavenIso[]> {
+export async function hostHeavenListIsos(vmId: number, serverIp?: string): Promise<HostHeavenIso[]> {
   const session = await getHostHeavenSession();
   if (session.isReseller) {
     const data = await hostHeavenRequest<HostHeavenIso[]>(
-      `/api/reseller/user/vms/${_vmId}/isos`,
+      `/api/reseller/user/vms/${vmId}/isos`,
       { method: "GET" },
       true,
       true
     );
     return Array.isArray(data) ? data : [];
   }
-  return listUserIsos();
+  return listUserIsos(serverIp);
 }
 
 export async function hostHeavenRebuildVm(vmId: number, newIsoId: number): Promise<void> {
