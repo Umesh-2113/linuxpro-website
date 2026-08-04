@@ -156,8 +156,8 @@ export function ClientServerManagePanel({ serverId }: Props) {
         if (viaApi) {
           setToast(
             action === "reinstall"
-              ? `${label} started via HostHeaven — new password saved here and syncing to HostHeaven (may take 1–2 min while rebuild finishes).`
-              : `${label} completed via HostHeaven API.`
+              ? `${label} started — new password saved here and syncing to the server (may take 1–2 min while rebuild finishes).`
+              : `${label} completed successfully.`
           );
           await fetchServers(user.email);
           window.dispatchEvent(new Event("servers-updated"));
@@ -202,7 +202,7 @@ export function ClientServerManagePanel({ serverId }: Props) {
   };
 
   const reinstallSteps = [
-    "Connecting to HostHeaven API…",
+    "Connecting to server API…",
     "Starting OS rebuild…",
     "Applying new password…",
     "Almost done — updating credentials…",
@@ -292,7 +292,7 @@ export function ClientServerManagePanel({ serverId }: Props) {
                   })}
                 </ul>
                 <p className="manage-reinstall-processing__hint">
-                  Please wait — HostHeaven rebuild can take up to a minute. Do not close this window.
+                  Please wait — rebuild can take up to a minute. Do not close this window.
                 </p>
               </div>
             ) : (
@@ -328,8 +328,8 @@ export function ClientServerManagePanel({ serverId }: Props) {
 
                 <p className="manage-modal-warning">
                   {server.provider === "hostheaven"
-                    ? "HostHeaven API will rebuild the OS now. New username and password will appear in credentials below."
-                    : "If this server is on HostHeaven, rebuild runs via API immediately. Otherwise admin will deliver new credentials."}
+                    ? "OS will rebuild now via API. New username and password will appear in credentials below."
+                    : "If this server supports API control, rebuild runs immediately. Otherwise admin will deliver new credentials."}
                 </p>
 
                 <div className="manage-modal-actions">
@@ -404,8 +404,8 @@ export function ClientServerManagePanel({ serverId }: Props) {
           <h2>Server Controls</h2>
           <p>
             {server.provider === "hostheaven"
-              ? "Start, stop, and reinstall run via HostHeaven API"
-              : "HostHeaven servers run instantly; others go to admin queue"}
+              ? "Start, stop, and reinstall run instantly via API"
+              : "API servers run instantly; others go to admin queue"}
           </p>
         </div>
 
