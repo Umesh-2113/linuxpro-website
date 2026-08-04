@@ -130,18 +130,24 @@ export function AdminServerManagePanel() {
 
     const creds = reinstallCredentials();
     void (async () => {
-      const updated = await updateServerAction(selected.id, {
-        status,
-        adminNote,
-        newUsername: selected.action === "reinstall" ? creds.newUsername || undefined : undefined,
-        newPassword: selected.action === "reinstall" ? creds.newPassword || undefined : undefined,
-      });
+      try {
+        const updated = await updateServerAction(selected.id, {
+          status,
+          adminNote,
+          newUsername: selected.action === "reinstall" ? creds.newUsername || undefined : undefined,
+          newPassword: selected.action === "reinstall" ? creds.newPassword || undefined : undefined,
+        });
 
-      if (updated && status === "completed") {
-        await applyCompletionSideEffects(updated);
+        if (updated.status === "completed") {
+          await applyCompletionSideEffects(updated);
+        }
+        setDeliverError("");
+        load();
+      } catch (error) {
+        setDeliverError(
+          error instanceof Error ? error.message : "Failed to update request."
+        );
       }
-      setDeliverError("");
-      load();
     })();
   };
 
@@ -158,18 +164,22 @@ export function AdminServerManagePanel() {
     }
 
     void (async () => {
-      const updated = await updateServerAction(selected.id, {
-        status: "completed",
-        adminNote,
-        newUsername: creds.newUsername,
-        newPassword: creds.newPassword,
-      });
+      try {
+        const updated = await updateServerAction(selected.id, {
+          status: "completed",
+          adminNote,
+          newUsername: creds.newUsername,
+          newPassword: creds.newPassword,
+        });
 
-      if (updated) {
         await applyCompletionSideEffects(updated);
+        setDeliverError("");
+        load();
+      } catch (error) {
+        setDeliverError(
+          error instanceof Error ? error.message : "Failed to deliver reinstall."
+        );
       }
-      setDeliverError("");
-      load();
     })();
   };
 
@@ -201,7 +211,10 @@ export function AdminServerManagePanel() {
       <header className="admin-topbar">
         <div>
           <h1>Server Manage</h1>
-          <p>Customer requests — start, stop, and OS reinstall with credential delivery.</p>
+          <p>
+            Customer requests — start, stop, and OS reinstall with credential delivery.
+            HostHeaven stock looks up the VM by server IP when you set Processing.
+          </p>
         </div>
       </header>
 
@@ -388,6 +401,7 @@ export function AdminServerManagePanel() {
 
               <div className="manage-detail-actions">
                 <h3>Update Status</h3>
+                {deliverError && <p className="manage-reinstall-error">{deliverError}</p>}
                 <div className="manage-status-buttons">
                   {(["pending", "processing", "completed", "rejected"] as ServerActionStatus[]).map(
                     (s) => (

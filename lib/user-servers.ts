@@ -1,4 +1,5 @@
 import { apiGet, apiPatch } from "@/lib/api-client";
+import type { StockProvider } from "@/lib/stock-providers";
 import { getOrderSubtitle, type Order } from "@/lib/orders";
 import type { StockType } from "@/lib/stock";
 
@@ -18,6 +19,9 @@ export type UserServer = {
   os: string;
   status: "active" | "suspended";
   powerState: "running" | "stopped" | "unknown";
+  provider?: StockProvider;
+  providerVmId?: number;
+  stockId?: string;
   createdAt: string;
 };
 

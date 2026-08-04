@@ -143,15 +143,11 @@ export async function updateServerAction(
   updates: Partial<
     Pick<ServerActionRequest, "status" | "adminNote" | "newUsername" | "newPassword">
   >
-): Promise<ServerActionRequest | null> {
-  try {
-    const updated = await apiPatch<ServerActionRequest>(`/api/server-actions/${id}`, updates);
-    cache = cache.map((a) => (a.id === id ? updated : a));
-    emitUpdate();
-    return updated;
-  } catch {
-    return null;
-  }
+): Promise<ServerActionRequest> {
+  const updated = await apiPatch<ServerActionRequest>(`/api/server-actions/${id}`, updates);
+  cache = cache.map((a) => (a.id === id ? updated : a));
+  emitUpdate();
+  return updated;
 }
 
 export async function deleteServerAction(id: string): Promise<void> {

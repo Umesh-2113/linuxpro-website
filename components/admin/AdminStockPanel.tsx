@@ -12,6 +12,7 @@ import {
   getStock,
   getStockStatus,
   getStockStatusLabel,
+  stockProviderLabels,
   stockTypeLabels,
   type StockItem,
 } from "@/lib/stock";
@@ -168,6 +169,7 @@ export function AdminStockPanel() {
                   <tr>
                     <th>Type</th>
                     <th>Series</th>
+                    <th>Provider</th>
                     <th>Specs</th>
                     <th>Plan / Price</th>
                     <th>Qty</th>
@@ -192,6 +194,22 @@ export function AdminStockPanel() {
                             {item.region}
                             {item.type === "proxy" ? ` · Port ${item.port}` : ` · ${item.os}`}
                           </small>
+                        </td>
+                        <td>
+                          <span className="admin-stock-provider">
+                            {stockProviderLabels[item.provider ?? "manual"]}
+                          </span>
+                          {item.provider === "hostheaven" && item.providerVmId ? (
+                            <>
+                              <br />
+                              <small>VM #{item.providerVmId}</small>
+                            </>
+                          ) : item.provider === "hostheaven" ? (
+                            <>
+                              <br />
+                              <small>Auto by IP</small>
+                            </>
+                          ) : null}
                         </td>
                         <td>{formatStockSpecs(item)}</td>
                         <td>
@@ -248,6 +266,17 @@ export function AdminStockPanel() {
                       </small>
                     </div>
                     <dl className="admin-stock-card__meta">
+                      <div>
+                        <dt>Provider</dt>
+                        <dd>
+                          {stockProviderLabels[item.provider ?? "manual"]}
+                          {item.provider === "hostheaven" && item.providerVmId
+                            ? ` · VM #${item.providerVmId}`
+                            : item.provider === "hostheaven"
+                              ? " · Auto by IP"
+                              : ""}
+                        </dd>
+                      </div>
                       <div>
                         <dt>Specs</dt>
                         <dd>{formatStockSpecs(item)}</dd>

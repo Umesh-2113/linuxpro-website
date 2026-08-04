@@ -1,4 +1,6 @@
 import { apiDelete, apiGet, apiPatch, apiPost } from "@/lib/api-client";
+import type { StockProvider } from "@/lib/stock-providers";
+import { normalizeStockProvider } from "@/lib/stock-providers";
 
 export type StockType = "vps" | "linux" | "proxy";
 
@@ -142,6 +144,9 @@ export function formatPromoBadge(entry: Pick<PromoEntry, "code" | "type" | "valu
     : `${entry.code} −${entry.value}%`;
 }
 
+export type { StockProvider } from "@/lib/stock-providers";
+export { stockProviderLabels, stockProviders } from "@/lib/stock-providers";
+
 export type StockItem = {
   id: string;
   type: StockType;
@@ -155,6 +160,10 @@ export type StockItem = {
   ramPlans?: RamPlan[];
   region: string;
   os: string;
+  /** Who manages server power/rebuild for orders from this stock. */
+  provider?: StockProvider;
+  /** Optional override; otherwise resolved from server IP via HostHeaven API. */
+  providerVmId?: number;
   createdAt: string;
 };
 
@@ -212,6 +221,11 @@ function normalizeItem(item: StockItem): StockItem {
 
   return {
     ...base,
+    provider: normalizeStockProvider(base.provider),
+    providerVmId:
+      typeof base.providerVmId === "number" && base.providerVmId > 0
+        ? Math.round(base.providerVmId)
+        : undefined,
     ram: primaryRam,
     vcpu: primaryVcpu,
     price:

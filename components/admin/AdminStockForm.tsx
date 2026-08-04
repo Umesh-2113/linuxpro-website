@@ -12,6 +12,9 @@ import {
   type RamPlan,
   type StockItem,
   type StockType,
+  stockProviderLabels,
+  stockProviders,
+  type StockProvider,
 } from "@/lib/stock";
 import {
   resolveOsSelect,
@@ -155,6 +158,8 @@ export function AdminStockForm({ editingItem, onSaved, onCancel }: Props) {
   const [customRegion, setCustomRegion] = useState(defaultForm.customRegion);
   const [osSelect, setOsSelect] = useState(defaultForm.osSelect);
   const [customOs, setCustomOs] = useState(defaultForm.customOs);
+  const [provider, setProvider] = useState<StockProvider>("manual");
+  const [providerVmId, setProviderVmId] = useState("");
   const [formError, setFormError] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -189,6 +194,12 @@ export function AdminStockForm({ editingItem, onSaved, onCancel }: Props) {
     setCustomRegion(region.custom);
     setOsSelect(os.select);
     setCustomOs(os.custom);
+    setProvider(editingItem.provider ?? "manual");
+    setProviderVmId(
+      editingItem.providerVmId && editingItem.providerVmId > 0
+        ? String(editingItem.providerVmId)
+        : ""
+    );
     setFormError("");
   }, [editingItem]);
 
@@ -235,6 +246,17 @@ export function AdminStockForm({ editingItem, onSaved, onCancel }: Props) {
     );
   };
 
+  const providerFields = () => {
+    const vmId =
+      provider === "hostheaven" && providerVmId.trim()
+        ? Number(providerVmId.trim())
+        : undefined;
+    return {
+      provider,
+      providerVmId: vmId && vmId > 0 ? Math.round(vmId) : undefined,
+    };
+  };
+
   const validateAndGetValues = () => {
     if (!series.trim()) {
       setFormError("Series is required (e.g. 162.4.xx).");
@@ -268,6 +290,7 @@ export function AdminStockForm({ editingItem, onSaved, onCancel }: Props) {
         price: proxyPrice,
         region,
         os: "N/A",
+        ...providerFields(),
       };
     }
 
@@ -298,6 +321,7 @@ export function AdminStockForm({ editingItem, onSaved, onCancel }: Props) {
       ramPlans: plans,
       region,
       os,
+      ...providerFields(),
     };
   };
 
@@ -351,6 +375,43 @@ export function AdminStockForm({ editingItem, onSaved, onCancel }: Props) {
             required
           />
         </div>
+
+        <div className="auth-form__field">
+          <label htmlFor="stock-provider">Manage via</label>
+          <select
+            id="stock-provider"
+            value={provider}
+            onChange={(e) => setProvider(e.target.value as StockProvider)}
+          >
+            {stockProviders.map((p) => (
+              <option key={p} value={p}>
+                {stockProviderLabels[p]}
+              </option>
+            ))}
+          </select>
+          <small className="auth-form__hint">
+            HostHeaven: when you process start/stop/reinstall, the API finds the VM by
+            the server IP (no VM ID needed).
+          </small>
+        </div>
+
+        {provider === "hostheaven" && (
+          <div className="auth-form__field">
+            <label htmlFor="stock-provider-vm-id">HostHeaven VM ID (optional)</label>
+            <input
+              id="stock-provider-vm-id"
+              type="number"
+              min={1}
+              step={1}
+              value={providerVmId}
+              onChange={(e) => setProviderVmId(e.target.value)}
+              placeholder="Leave blank — auto-detect by IP"
+            />
+            <small className="auth-form__hint">
+              Only needed if multiple VMs share the same IP. Otherwise leave empty.
+            </small>
+          </div>
+        )}
 
         {type === "proxy" ? (
           <>

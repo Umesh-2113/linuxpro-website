@@ -1,5 +1,6 @@
 import { getOrderSubtitle, type Order } from "@/lib/orders";
 import type { UserServer } from "@/lib/user-servers";
+import { dbGetStockById } from "@/lib/db/stock";
 import { getCollection } from "@/lib/mongodb";
 
 async function collection() {
@@ -41,6 +42,7 @@ export async function dbCreateServersFromOrder(
 
   const now = new Date().toISOString();
   const plan = getOrderSubtitle(order);
+  const stock = await dbGetStockById(order.stockId);
   const created: UserServer[] = [];
 
   for (let i = 0; i < order.quantity; i++) {
@@ -48,6 +50,7 @@ export async function dbCreateServersFromOrder(
     created.push({
       id: `srv-${order.id}${suffix}`,
       orderId: order.id,
+      stockId: order.stockId,
       userEmail: order.userEmail,
       userName: order.userName,
       name: serverNameFromOrder(order, `srv-${order.id}${suffix}`, order.id),
@@ -61,6 +64,8 @@ export async function dbCreateServersFromOrder(
       os: order.os,
       status: "active",
       powerState: "running",
+      provider: stock?.provider,
+      providerVmId: stock?.providerVmId,
       createdAt: now,
     });
   }
@@ -76,7 +81,7 @@ export async function dbUpdateServer(
   updates: Partial<
     Pick<
       UserServer,
-      "ip" | "username" | "password" | "port" | "name" | "status" | "powerState" | "os"
+      "ip" | "username" | "password" | "port" | "name" | "status" | "powerState" | "os" | "providerVmId" | "provider"
     >
   >
 ): Promise<UserServer | null> {

@@ -3,6 +3,7 @@ import {
   type StockItem,
   type StockType,
 } from "@/lib/stock";
+import { normalizeStockProvider } from "@/lib/stock-providers";
 import { dbGetOrders } from "@/lib/db/orders";
 import { getCollection, hasMongoEnv } from "@/lib/mongodb";
 import { ensureSeeded } from "@/lib/db/seed";
@@ -11,6 +12,11 @@ function normalizeItem(item: StockItem): StockItem {
   const base = { ...item, port: item.port ?? "" };
   return {
     ...base,
+    provider: normalizeStockProvider(base.provider),
+    providerVmId:
+      typeof base.providerVmId === "number" && base.providerVmId > 0
+        ? Math.round(base.providerVmId)
+        : undefined,
     price:
       typeof base.price === "number" && base.price > 0
         ? base.price
