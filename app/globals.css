@@ -5663,6 +5663,19 @@ section { padding: 100px 0; }
   flex-shrink: 0;
 }
 
+.order-modal--success {
+  max-width: 480px;
+  width: 100%;
+  padding: 8px;
+}
+
+.order-modal__success {
+  box-shadow: none;
+  border: none;
+  background: transparent;
+  padding: 24px 16px;
+}
+
 .order-modal__product {
   margin-bottom: 16px;
 }

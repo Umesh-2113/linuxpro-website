@@ -225,14 +225,13 @@ export async function confirmCashfreePayment(
 }
 
 export async function confirmWalletPayment(orderId: string): Promise<Order | null> {
-  try {
-    const updated = await apiPost<Order>(`/api/orders/${orderId}/wallet`, {});
-    cache = cache.map((o) => (o.id === orderId ? updated : o));
-    emitUpdate();
-    return updated;
-  } catch {
-    return null;
+  const updated = await apiPost<Order>(`/api/orders/${orderId}/wallet`, {});
+  cache = cache.map((o) => (o.id === orderId ? updated : o));
+  emitUpdate();
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new Event("wallet-updated"));
   }
+  return updated;
 }
 
 export async function deleteOrder(id: string): Promise<void> {

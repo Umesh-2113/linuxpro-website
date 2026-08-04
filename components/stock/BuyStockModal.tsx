@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { getUser } from "@/lib/auth";
 import { startCashfreeCheckout } from "@/lib/cashfree-client";
 import { createOrder, confirmWalletPayment } from "@/lib/orders";
@@ -28,7 +29,7 @@ import {
 type Props = {
   item: StockItem;
   onClose: () => void;
-  onSuccess: (orderId: string) => void;
+  onSuccess: (orderId: string, paymentMethod: "wallet" | "cashfree") => void;
 };
 
 function sanitizeCustomerId(email: string): string {
@@ -52,6 +53,10 @@ export function BuyStockModal({ item, onClose, onSuccess }: Props) {
   const [promoMsg, setPromoMsg] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<"cashfree" | "wallet">("cashfree");
   const [walletBalance, setWalletBalance] = useState(0);
+  const [walletSuccess, setWalletSuccess] = useState<{
+    orderId: string;
+    amount: number;
+  } | null>(null);
 
   const selectedPlan = getRamPlan(item, selectedRamGb);
   const unitPrice = getStockPrice(item, selectedRamGb);
@@ -149,14 +154,19 @@ export function BuyStockModal({ item, onClose, onSuccess }: Props) {
     }
 
     if (paymentMethod === "wallet") {
-      const paid = await confirmWalletPayment(order.id);
-      setLoading(false);
-      if (!paid) {
-        setError("Wallet payment failed. Please try again or use Cashfree.");
-        return;
+      try {
+        const paid = await confirmWalletPayment(order.id);
+        setLoading(false);
+        if (!paid) {
+          setError("Wallet payment failed. Please try again or use Cashfree.");
+          return;
+        }
+        await fetchWallet();
+        setWalletSuccess({ orderId: order.id, amount: total });
+      } catch (err) {
+        setLoading(false);
+        setError(err instanceof Error ? err.message : "Wallet payment failed.");
       }
-      await fetchWallet();
-      onSuccess(order.id);
       return;
     }
 
@@ -183,7 +193,7 @@ export function BuyStockModal({ item, onClose, onSuccess }: Props) {
         return;
       }
 
-      onSuccess(order.id);
+      onSuccess(order.id, "cashfree");
       await startCashfreeCheckout(data.payment_session_id);
     } catch (err) {
       setError(
@@ -192,6 +202,51 @@ export function BuyStockModal({ item, onClose, onSuccess }: Props) {
       setLoading(false);
     }
   };
+
+  if (walletSuccess) {
+    return (
+      <div
+        className="order-modal-overlay order-modal-overlay--solid"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="wallet-success-title"
+      >
+        <div className="order-modal order-modal--solid order-modal--success">
+          <div className="payment-callback payment-callback--success order-modal__success">
+            <div className="payment-callback__icon">✓</div>
+            <h2 id="wallet-success-title">Order Placed Successfully</h2>
+            <p>
+              <strong>{formatWalletAmount(walletSuccess.amount)}</strong> paid from your wallet.
+            </p>
+            <p className="payment-callback__product">
+              IP <strong>{seriesName}</strong> · {stockTypeLabels[item.type]}
+            </p>
+            <p className="payment-callback__order">
+              Order: <strong>{walletSuccess.orderId}</strong>
+            </p>
+            <p className="payment-callback__hint">
+              Payment received. Admin will deliver your server credentials soon.
+            </p>
+            <div className="payment-callback__actions">
+              <Link href="/client/orders" className="btn btn--primary">
+                Manage Orders
+              </Link>
+              <button
+                type="button"
+                className="btn btn--outline"
+                onClick={() => {
+                  onSuccess(walletSuccess.orderId, "wallet");
+                  onClose();
+                }}
+              >
+                Continue Shopping
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div

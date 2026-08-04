@@ -484,10 +484,15 @@ export function StockDisplay({ variant = "public" }: Props) {
         <BuyStockModal
           item={buyItem}
           onClose={() => setBuyItem(null)}
-          onSuccess={(orderId) => {
+          onSuccess={(orderId, paymentMethod) => {
             setBuyItem(null);
-            setOrderSuccess(`Order ${orderId} created — complete payment on Cashfree.`);
+            setOrderSuccess(
+              paymentMethod === "wallet"
+                ? `Order ${orderId} placed successfully! Payment received from your wallet. Admin will deliver soon.`
+                : `Order ${orderId} created — complete payment on Cashfree.`
+            );
             refresh();
+            window.scrollTo({ top: 0, behavior: "smooth" });
           }}
         />
       )}
