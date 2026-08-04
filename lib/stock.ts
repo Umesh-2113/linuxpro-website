@@ -18,6 +18,11 @@ export type PromoEntry = {
   value: number;
 };
 
+/** Applied on every RAM plan (checkout + admin display). */
+export const GLOBAL_STOCK_PROMOS: PromoEntry[] = [
+  { code: "LINUX50", type: "percent", value: 50 },
+];
+
 export type RamPlan = {
   ram: number;
   vcpu: number;
@@ -91,6 +96,10 @@ function normalizeRamPlan(
         plan.price
       )
     );
+  }
+
+  for (const globalPromo of GLOBAL_STOCK_PROMOS) {
+    pushPromo(sanitizePromoEntry(globalPromo, plan.price));
   }
 
   const out: RamPlan = { ram: plan.ram, vcpu, price: plan.price };
