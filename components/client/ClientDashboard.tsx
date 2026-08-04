@@ -27,6 +27,13 @@ function powerLabel(state: UserServer["powerState"]) {
   return "Unknown";
 }
 
+function getGreeting(): string {
+  const hour = new Date().getHours();
+  if (hour < 12) return "Good morning";
+  if (hour < 17) return "Good afternoon";
+  return "Good evening";
+}
+
 export function ClientDashboard() {
   const [servers, setServers] = useState<UserServer[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
@@ -67,6 +74,7 @@ export function ClientDashboard() {
       (o) =>
         o.fulfillmentStatus !== "delivered" && o.fulfillmentStatus !== "cancelled"
     ).length;
+    const delivered = orders.filter((o) => o.fulfillmentStatus === "delivered").length;
     const totalSpent = orders
       .filter((o) => o.paymentStatus === "received")
       .reduce((sum, o) => sum + o.totalAmount, 0);
@@ -74,148 +82,193 @@ export function ClientDashboard() {
       totalServers: servers.length,
       online,
       activeOrders,
+      delivered,
       totalSpent,
     };
   }, [servers, orders]);
 
-  const recentServers = servers.slice(0, 5);
-  const recentOrders = orders.slice(0, 4);
+  const recentServers = servers.slice(0, 4);
+  const recentOrders = orders.slice(0, 3);
 
   return (
-    <div className="client-dash">
-      <header className="client-dash-hero">
-        <div className="client-dash-hero__glow" aria-hidden />
-        <div className="client-dash-hero__content">
+    <div className="client-home">
+      <header className="client-home-hero">
+        <div className="client-home-hero__mesh" aria-hidden />
+        <div className="client-home-hero__content">
           <div>
-            <h1>Welcome back, {userName}</h1>
-            <p>Your live overview — servers, orders, and support from your account.</p>
+            <span className="client-home-hero__eyebrow">Client Command Center</span>
+            <h1>
+              {getGreeting()}, <span>{userName}</span>
+            </h1>
+            <p>Servers, wallet, orders, and support — everything in one place.</p>
           </div>
-          <Link href="/client/ip-stock" className="btn btn--primary btn--sm">
-            + Buy IP Stock
-          </Link>
+          <div className="client-home-hero__actions">
+            <Link href="/client/ip-stock" className="btn btn--primary">
+              + Buy IP Stock
+            </Link>
+            <Link href="/client/wallet" className="btn btn--outline btn--sm">
+              My Wallet
+            </Link>
+          </div>
         </div>
       </header>
 
-      <div className="client-stats">
-        <div className="client-stat-card glass">
-          <span className="client-stat-card__label">My Servers</span>
-          <span className="client-stat-card__value">{stats.totalServers}</span>
-        </div>
-        <div className="client-stat-card glass client-stat-card--online">
-          <span className="client-stat-card__label">Online</span>
-          <span className="client-stat-card__value">{stats.online}</span>
-        </div>
-        <div className="client-stat-card glass">
-          <span className="client-stat-card__label">Active Orders</span>
-          <span className="client-stat-card__value">{stats.activeOrders}</span>
-        </div>
-        <div className="client-stat-card glass client-stat-card--wallet">
-          <span className="client-stat-card__label">My Wallet</span>
-          <span className="client-stat-card__value">{formatWalletAmount(walletBalance)}</span>
+      <div className="client-home-bento">
+        <article className="client-home-wallet glass">
+          <div className="client-home-wallet__top">
+            <span className="client-home-wallet__label">My Wallet Balance</span>
+            <span className="client-home-wallet__icon" aria-hidden>
+              💳
+            </span>
+          </div>
+          <strong className="client-home-wallet__amount">
+            {formatWalletAmount(walletBalance)}
+          </strong>
+          <p>Use wallet balance for instant IP stock checkout.</p>
           <Link href="/client/wallet" className="btn btn--primary btn--sm">
             Add Money
           </Link>
-        </div>
-        <div className="client-stat-card glass">
-          <span className="client-stat-card__label">Open Tickets</span>
-          <span className="client-stat-card__value">{openTickets}</span>
-        </div>
+        </article>
+
+        <article className="client-home-tile glass">
+          <span className="client-home-tile__value">{stats.totalServers}</span>
+          <span className="client-home-tile__label">My Servers</span>
+        </article>
+        <article className="client-home-tile glass client-home-tile--green">
+          <span className="client-home-tile__value">{stats.online}</span>
+          <span className="client-home-tile__label">Online Now</span>
+        </article>
+        <article className="client-home-tile glass client-home-tile--amber">
+          <span className="client-home-tile__value">{stats.activeOrders}</span>
+          <span className="client-home-tile__label">Active Orders</span>
+        </article>
+        <article className="client-home-tile glass">
+          <span className="client-home-tile__value">{openTickets}</span>
+          <span className="client-home-tile__label">Open Tickets</span>
+        </article>
+        <article className="client-home-tile glass client-home-tile--green">
+          <span className="client-home-tile__value">{stats.delivered}</span>
+          <span className="client-home-tile__label">Delivered</span>
+        </article>
       </div>
 
-      <div className="client-grid-2">
-        <section className="client-panel glass">
-          <div className="client-panel__header">
-            <h2>Your Servers</h2>
-            <Link href="/client/servers">View all</Link>
+      <div className="client-home-quick">
+        {[
+          { href: "/client/servers", label: "Servers", icon: "🖥️" },
+          { href: "/client/orders", label: "Orders", icon: "📋" },
+          { href: "/client/wallet", label: "Wallet", icon: "💰" },
+          { href: "/client/support", label: "Support", icon: "💬" },
+        ].map((item) => (
+          <Link key={item.href} href={item.href} className="client-home-quick__link glass">
+            <span aria-hidden>{item.icon}</span>
+            {item.label}
+          </Link>
+        ))}
+      </div>
+
+      <div className="client-home-panels">
+        <section className="client-home-panel glass">
+          <div className="client-home-panel__head">
+            <div>
+              <h2>Your Servers</h2>
+              <p>Recently active VPS and Linux instances</p>
+            </div>
+            <Link href="/client/servers">View all →</Link>
           </div>
 
           {recentServers.length === 0 ? (
-            <div className="client-dash-empty">
-              <p>No servers yet. Buy IP stock and admin will deliver your server.</p>
+            <div className="client-home-empty">
+              <p>No servers yet. Buy IP stock and admin will deliver credentials.</p>
               <Link href="/client/ip-stock" className="btn btn--outline btn--sm">
                 Browse IP Stock
               </Link>
             </div>
           ) : (
-            <div className="client-table-wrap">
-              <table className="client-table">
-                <thead>
-                  <tr>
-                    <th>IP Series</th>
-                    <th>IP Address</th>
-                    <th>Power</th>
-                    <th>Type</th>
-                    <th />
-                  </tr>
-                </thead>
-                <tbody>
-                  {recentServers.map((s) => (
-                    <tr key={s.id}>
-                      <td>
-                        <strong className="client-dash-series">{s.name}</strong>
-                      </td>
-                      <td className="client-dash-ip">{s.ip}</td>
-                      <td>
-                        <span className={`client-dash-power client-dash-power--${s.powerState}`}>
-                          {powerLabel(s.powerState)}
-                        </span>
-                      </td>
-                      <td>{stockTypeLabels[s.type]}</td>
-                      <td>
-                        <Link href={`/client/servers/${s.id}`} className="client-dash-link">
-                          Manage →
-                        </Link>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div className="client-home-server-list">
+              {recentServers.map((s) => (
+                <Link
+                  key={s.id}
+                  href={`/client/servers/${s.id}`}
+                  className="client-home-server-row"
+                >
+                  <div className="client-home-server-row__main">
+                    <strong>{s.name}</strong>
+                    <span className="client-home-server-row__ip">{s.ip}</span>
+                  </div>
+                  <div className="client-home-server-row__meta">
+                    <span className="client-home-server-row__type">
+                      {stockTypeLabels[s.type]}
+                    </span>
+                    <span
+                      className={`client-home-server-row__power client-home-server-row__power--${s.powerState}`}
+                    >
+                      {powerLabel(s.powerState)}
+                    </span>
+                  </div>
+                </Link>
+              ))}
             </div>
           )}
         </section>
 
-        <section className="client-panel glass">
-          <div className="client-panel__header">
-            <h2>Recent Orders</h2>
-            <Link href="/client/orders">View all</Link>
+        <section className="client-home-panel glass">
+          <div className="client-home-panel__head">
+            <div>
+              <h2>Recent Orders</h2>
+              <p>Latest purchases and delivery status</p>
+            </div>
+            <Link href="/client/orders">View all →</Link>
           </div>
 
           {recentOrders.length === 0 ? (
-            <div className="client-dash-empty">
-              <p>No orders yet. Start by purchasing from IP Stock.</p>
+            <div className="client-home-empty">
+              <p>No orders yet. Start with IP Stock.</p>
               <Link href="/client/ip-stock" className="btn btn--primary btn--sm">
                 Buy Now
               </Link>
             </div>
           ) : (
-            <ul className="client-list">
+            <div className="client-home-order-list">
               {recentOrders.map((o) => (
-                <li key={o.id} className="client-list__item">
+                <Link key={o.id} href="/client/orders" className="client-home-order-row">
                   <div>
-                    <strong className="client-dash-series">IP {getOrderTitle(o)}</strong>
+                    <strong>IP {getOrderTitle(o)}</strong>
                     <span>{getOrderSubtitle(o)}</span>
-                    <span className="client-dash-order-id">{o.id}</span>
+                    <span className="client-home-order-row__id">{o.id}</span>
                   </div>
-                  <div className="client-list__meta">
-                    <span>₹{o.totalAmount.toLocaleString("en-IN")}</span>
-                    <span className={`status-badge status-badge--${o.paymentStatus === "received" ? "paid" : "pending"}`}>
-                      {getAdminPaymentLabel(o)}
-                    </span>
-                    <span className={`status-badge status-badge--${o.fulfillmentStatus === "delivered" ? "paid" : "open"}`}>
-                      {getAdminFulfillmentLabel(o)}
+                  <div className="client-home-order-row__side">
+                    <strong>₹{o.totalAmount.toLocaleString("en-IN")}</strong>
+                    <div className="client-home-order-row__chips">
+                      <span
+                        className={`client-order-chip client-order-chip--${
+                          o.paymentStatus === "received" ? "ok" : "wait"
+                        }`}
+                      >
+                        {getAdminPaymentLabel(o)}
+                      </span>
+                      <span
+                        className={`client-order-chip client-order-chip--${
+                          o.fulfillmentStatus === "delivered" ? "ok" : "wait"
+                        }`}
+                      >
+                        {getAdminFulfillmentLabel(o)}
+                      </span>
+                    </div>
+                    <span className="client-home-order-row__date">
+                      {formatOrderDate(o.createdAt)}
                     </span>
                   </div>
-                  <span className="client-dash-order-date">{formatOrderDate(o.createdAt)}</span>
-                </li>
+                </Link>
               ))}
-            </ul>
+            </div>
           )}
         </section>
       </div>
 
       {stats.totalSpent > 0 && (
-        <p className="client-dash-footnote">
-          Total confirmed payments: <strong>₹{stats.totalSpent.toLocaleString("en-IN")}</strong>
+        <p className="client-home-footnote">
+          Lifetime confirmed payments:{" "}
+          <strong>₹{stats.totalSpent.toLocaleString("en-IN")}</strong>
         </p>
       )}
     </div>
