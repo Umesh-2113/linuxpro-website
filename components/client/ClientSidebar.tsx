@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { Logo } from "@/components/Logo";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { oceanClientNav, oceanPuttyLinks, type ClientNavItem } from "@/lib/client-ocean-data";
+import { oceanClientNav, type ClientNavItem } from "@/lib/client-ocean-data";
 import { signOut } from "next-auth/react";
 import { logout } from "@/lib/auth";
 
@@ -74,11 +74,6 @@ function NavIcon({ type }: { type: string }) {
     chat: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
         <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
-      </svg>
-    ),
-    download: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-        <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" />
       </svg>
     ),
   };
@@ -194,22 +189,6 @@ export function ClientSidebar({
                 })}
             </div>
           ))}
-
-          <div className="ocean-nav-group">
-            <span className="ocean-nav-group__label">PuTTY / SSH</span>
-            {oceanPuttyLinks.map((link) => (
-              <a
-                key={link.href}
-                href={link.href}
-                className="client-sidebar__link ocean-sidebar__link ocean-sidebar__link--external"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <NavIcon type="download" />
-                {link.label}
-              </a>
-            ))}
-          </div>
         </nav>
 
         <div className="client-sidebar__footer ocean-sidebar__footer">

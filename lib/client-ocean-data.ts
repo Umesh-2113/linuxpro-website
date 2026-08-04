@@ -8,17 +8,6 @@ export const oceanPromoBanner = {
   detail: "Apply promo codes at checkout on eligible plans.",
 };
 
-export const oceanPuttyLinks = [
-  {
-    label: "Download PuTTY",
-    href: "https://www.chiark.greenend.org.uk/~sgtatham/putty/latest.html",
-  },
-  {
-    label: "WinSCP (SFTP)",
-    href: "https://winscp.net/eng/download.php",
-  },
-];
-
 export const oceanStockCategories: Record<
   OceanStockCategory,
   { title: string; heading: string; description: string; sidebarLabel: string }
