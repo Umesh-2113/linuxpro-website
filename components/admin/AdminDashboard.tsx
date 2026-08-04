@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { getOrderStats } from "@/lib/orders";
+import { apiGet } from "@/lib/api-client";
 import { getStock } from "@/lib/stock";
 import { getTickets } from "@/lib/tickets";
 import { getUsers } from "@/lib/users";
@@ -41,8 +42,7 @@ export function AdminDashboard() {
       pendingOrders: orderStats.paymentPending,
     }));
 
-    fetch("/api/admin/wallet", { cache: "no-store" })
-      .then((res) => (res.ok ? res.json() : null))
+    apiGet<{ totalBalance: number }>("/api/admin/wallet")
       .then((data) => {
         if (data?.totalBalance != null) {
           setStats((prev) => ({ ...prev, walletTotal: data.totalBalance }));

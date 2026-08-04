@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { apiGet, apiPost } from "@/lib/api-client";
 import { fetchUsers, getUsers } from "@/lib/users";
 import type { WalletAccountSummary, WalletTransaction } from "@/lib/db/wallet";
 
@@ -48,9 +49,7 @@ export function AdminWalletPanel() {
     setError("");
     try {
       await fetchUsers();
-      const res = await fetch("/api/admin/wallet", { cache: "no-store" });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to load wallets.");
+      const data = await apiGet<WalletOverview>("/api/admin/wallet");
       setOverview(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load wallets.");
@@ -85,18 +84,15 @@ export function AdminWalletPanel() {
 
     setSaving(true);
     try {
-      const res = await fetch("/api/admin/wallet/adjust", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: email.trim(),
-          type: adjustType,
-          amount: Math.round(value),
-          note: note.trim(),
-        }),
+      const data = await apiPost<{
+        balance: number;
+        email: string;
+      }>("/api/admin/wallet/adjust", {
+        email: email.trim(),
+        type: adjustType,
+        amount: Math.round(value),
+        note: note.trim(),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Adjustment failed.");
 
       setSuccess(
         `${adjustType === "credit" ? "Credited" : "Debited"} ${formatAmount(Math.round(value))} for ${email}. New balance: ${formatAmount(data.balance)}.`

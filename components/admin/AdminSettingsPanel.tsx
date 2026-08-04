@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { apiGet } from "@/lib/api-client";
 
 type HostHeavenStatus = {
   ok: boolean;
@@ -19,8 +20,7 @@ export function AdminSettingsPanel() {
   const testHostHeaven = useCallback(async () => {
     setHostHeavenLoading(true);
     try {
-      const res = await fetch("/api/admin/hostheaven/status", { cache: "no-store" });
-      const data = (await res.json()) as HostHeavenStatus;
+      const data = await apiGet<HostHeavenStatus>("/api/admin/hostheaven/status");
       setHostHeaven(data);
     } catch {
       setHostHeaven({
