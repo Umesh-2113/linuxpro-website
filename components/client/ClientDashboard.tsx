@@ -5,8 +5,6 @@ import Link from "next/link";
 import { getUser } from "@/lib/auth";
 import {
   formatOrderDate,
-  getAdminFulfillmentLabel,
-  getAdminPaymentLabel,
   getOrderSubtitle,
   getOrderTitle,
   getOrdersByUser,
@@ -115,41 +113,43 @@ export function ClientDashboard() {
 
       <div className="client-home-bento">
         <article className="client-home-wallet glass">
-          <div className="client-home-wallet__top">
-            <span className="client-home-wallet__label">My Wallet Balance</span>
-            <span className="client-home-wallet__icon" aria-hidden>
-              💳
-            </span>
+          <div className="client-home-wallet__body">
+            <div className="client-home-wallet__info">
+              <div className="client-home-wallet__top">
+                <span className="client-home-wallet__label">My Wallet</span>
+                <span className="client-home-wallet__icon" aria-hidden>
+                  💳
+                </span>
+              </div>
+              <strong className="client-home-wallet__amount">
+                {formatWalletAmount(walletBalance)}
+              </strong>
+              <p>Pay instantly from wallet at checkout.</p>
+            </div>
+            <Link href="/client/wallet" className="btn btn--primary btn--sm client-home-wallet__btn">
+              Add Money
+            </Link>
           </div>
-          <strong className="client-home-wallet__amount">
-            {formatWalletAmount(walletBalance)}
-          </strong>
-          <p>Use wallet balance for instant IP stock checkout.</p>
-          <Link href="/client/wallet" className="btn btn--primary btn--sm">
-            Add Money
-          </Link>
         </article>
 
-        <article className="client-home-tile glass">
-          <span className="client-home-tile__value">{stats.totalServers}</span>
-          <span className="client-home-tile__label">My Servers</span>
-        </article>
-        <article className="client-home-tile glass client-home-tile--green">
-          <span className="client-home-tile__value">{stats.online}</span>
-          <span className="client-home-tile__label">Online Now</span>
-        </article>
-        <article className="client-home-tile glass client-home-tile--amber">
-          <span className="client-home-tile__value">{stats.activeOrders}</span>
-          <span className="client-home-tile__label">Active Orders</span>
-        </article>
-        <article className="client-home-tile glass">
-          <span className="client-home-tile__value">{openTickets}</span>
-          <span className="client-home-tile__label">Open Tickets</span>
-        </article>
-        <article className="client-home-tile glass client-home-tile--green">
-          <span className="client-home-tile__value">{stats.delivered}</span>
-          <span className="client-home-tile__label">Delivered</span>
-        </article>
+        <div className="client-home-stats">
+          <article className="client-home-tile glass">
+            <span className="client-home-tile__value">{stats.totalServers}</span>
+            <span className="client-home-tile__label">Servers</span>
+          </article>
+          <article className="client-home-tile glass client-home-tile--green">
+            <span className="client-home-tile__value">{stats.online}</span>
+            <span className="client-home-tile__label">Online</span>
+          </article>
+          <article className="client-home-tile glass client-home-tile--amber">
+            <span className="client-home-tile__value">{stats.activeOrders}</span>
+            <span className="client-home-tile__label">Orders</span>
+          </article>
+          <article className="client-home-tile glass">
+            <span className="client-home-tile__value">{openTickets}</span>
+            <span className="client-home-tile__label">Tickets</span>
+          </article>
+        </div>
       </div>
 
       <div className="client-home-quick">
@@ -231,27 +231,33 @@ export function ClientDashboard() {
             <div className="client-home-order-list">
               {recentOrders.map((o) => (
                 <Link key={o.id} href="/client/orders" className="client-home-order-row">
-                  <div>
+                  <div className="client-home-order-row__main">
                     <strong>IP {getOrderTitle(o)}</strong>
                     <span>{getOrderSubtitle(o)}</span>
                     <span className="client-home-order-row__id">{o.id}</span>
                   </div>
                   <div className="client-home-order-row__side">
-                    <strong>₹{o.totalAmount.toLocaleString("en-IN")}</strong>
+                    <strong className="client-home-order-row__amount">
+                      ₹{o.totalAmount.toLocaleString("en-IN")}
+                    </strong>
                     <div className="client-home-order-row__chips">
                       <span
                         className={`client-order-chip client-order-chip--${
                           o.paymentStatus === "received" ? "ok" : "wait"
                         }`}
                       >
-                        {getAdminPaymentLabel(o)}
+                        {o.paymentStatus === "received" ? "Paid" : "Pending"}
                       </span>
                       <span
                         className={`client-order-chip client-order-chip--${
                           o.fulfillmentStatus === "delivered" ? "ok" : "wait"
                         }`}
                       >
-                        {getAdminFulfillmentLabel(o)}
+                        {o.fulfillmentStatus === "delivered"
+                          ? "Delivered"
+                          : o.fulfillmentStatus === "processing"
+                            ? "Processing"
+                            : "Awaiting"}
                       </span>
                     </div>
                     <span className="client-home-order-row__date">
