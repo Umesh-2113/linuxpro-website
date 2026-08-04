@@ -67,6 +67,8 @@ export function ClientServerManagePanel({ serverId }: Props) {
   const [showReinstallModal, setShowReinstallModal] = useState(false);
   const [selectedOs, setSelectedOs] = useState<ReinstallOsOption>("ubuntu");
   const [toast, setToast] = useState("");
+  const [busyAction, setBusyAction] = useState<ServerActionType | null>(null);
+  const [reinstallPhase, setReinstallPhase] = useState(0);
 
   const load = useCallback(() => {
     const user = getUser();
@@ -111,11 +113,22 @@ export function ClientServerManagePanel({ serverId }: Props) {
 
   const submitAction = (action: ServerActionType, reinstallOs?: ReinstallOsOption) => {
     void (async () => {
-      if (!server) return;
+      if (!server || busyAction) return;
       const user = getUser();
       if (!user) return;
 
+      setBusyAction(action);
+      if (action === "reinstall") {
+        setReinstallPhase(1);
+      }
+
       try {
+        if (action === "reinstall") {
+          // Visual progress while HostHeaven rebuild + password sync runs
+          window.setTimeout(() => setReinstallPhase((p) => (p < 2 ? 2 : p)), 2500);
+          window.setTimeout(() => setReinstallPhase((p) => (p < 3 ? 3 : p)), 8000);
+        }
+
         const result = await createServerAction({
           serverId: server.id,
           serverName: server.name,
@@ -126,7 +139,14 @@ export function ClientServerManagePanel({ serverId }: Props) {
           action,
           reinstallOs,
         });
+
+        if (action === "reinstall") {
+          setReinstallPhase(4);
+          await new Promise((r) => setTimeout(r, 700));
+        }
+
         setShowReinstallModal(false);
+        setReinstallPhase(0);
         const label =
           action === "reinstall" && reinstallOs
             ? `Reinstall (${reinstallOsLabels[reinstallOs]})`
@@ -147,19 +167,23 @@ export function ClientServerManagePanel({ serverId }: Props) {
         load();
       } catch (err) {
         setShowReinstallModal(false);
+        setReinstallPhase(0);
         setToast(err instanceof Error ? err.message : "Action failed. Try again.");
+      } finally {
+        setBusyAction(null);
       }
     })();
   };
 
   const handleAction = (action: ServerActionType) => {
-    if (!server) return;
+    if (!server || busyAction) return;
     if (pendingFor(action)) {
       setToast("This action is already in progress.");
       return;
     }
     if (action === "reinstall") {
       setSelectedOs("ubuntu");
+      setReinstallPhase(0);
       setShowReinstallModal(true);
       return;
     }
@@ -167,8 +191,26 @@ export function ClientServerManagePanel({ serverId }: Props) {
   };
 
   const handleReinstallConfirm = () => {
+    if (busyAction) return;
     submitAction("reinstall", selectedOs);
   };
+
+  const closeReinstallModal = () => {
+    if (busyAction === "reinstall") return;
+    setShowReinstallModal(false);
+    setReinstallPhase(0);
+  };
+
+  const reinstallSteps = [
+    "Connecting to HostHeaven API…",
+    "Starting OS rebuild…",
+    "Applying new password…",
+    "Almost done — updating credentials…",
+  ];
+  const reinstallStepLabel =
+    reinstallPhase >= 1 && reinstallPhase <= 4
+      ? reinstallSteps[Math.min(reinstallPhase, 4) - 1]
+      : "";
 
   if (!server) {
     return (
@@ -215,55 +257,91 @@ export function ClientServerManagePanel({ serverId }: Props) {
       {showReinstallModal && (
         <div
           className="manage-modal-overlay manage-modal-overlay--solid"
-          onClick={() => setShowReinstallModal(false)}
+          onClick={closeReinstallModal}
           role="dialog"
           aria-modal="true"
           aria-labelledby="reinstall-modal-title"
+          aria-busy={busyAction === "reinstall"}
         >
           <div className="manage-pro-modal manage-pro-modal--solid" onClick={(e) => e.stopPropagation()}>
-            <div className="manage-pro-modal__header">
-              <span className="manage-pro-modal__icon">
-                <ReinstallIcon />
-              </span>
-              <div>
-                <h3 id="reinstall-modal-title">Reinstall Operating System</h3>
-                <p>All data will be erased. Choose your new OS.</p>
+            {busyAction === "reinstall" ? (
+              <div className="manage-reinstall-processing">
+                <div className="manage-reinstall-processing__spinner" aria-hidden />
+                <h3 id="reinstall-modal-title">Reinstalling {reinstallOsLabels[selectedOs]}</h3>
+                <p className="manage-reinstall-processing__phase">{reinstallStepLabel}</p>
+                <ul className="manage-reinstall-processing__steps">
+                  {reinstallSteps.map((step, i) => {
+                    const stepNum = i + 1;
+                    const done = reinstallPhase > stepNum;
+                    const active = reinstallPhase === stepNum;
+                    return (
+                      <li
+                        key={step}
+                        className={
+                          done
+                            ? "is-done"
+                            : active
+                              ? "is-active"
+                              : ""
+                        }
+                      >
+                        <span className="manage-reinstall-processing__dot" />
+                        {step}
+                      </li>
+                    );
+                  })}
+                </ul>
+                <p className="manage-reinstall-processing__hint">
+                  Please wait — HostHeaven rebuild can take up to a minute. Do not close this window.
+                </p>
               </div>
-            </div>
-
-            <div className="os-picker">
-              {(["ubuntu", "windows"] as ReinstallOsOption[]).map((os) => (
-                <button
-                  key={os}
-                  type="button"
-                  className={`os-picker__option${selectedOs === os ? " os-picker__option--active" : ""}`}
-                  onClick={() => setSelectedOs(os)}
-                >
-                  <span className={`os-picker__icon os-picker__icon--${os}`}>
-                    {os === "ubuntu" ? "U" : "W"}
+            ) : (
+              <>
+                <div className="manage-pro-modal__header">
+                  <span className="manage-pro-modal__icon">
+                    <ReinstallIcon />
                   </span>
-                  <span className="os-picker__name">{reinstallOsLabels[os]}</span>
-                  <span className="os-picker__hint">
-                    {os === "ubuntu" ? "Linux · LTS" : "Windows Server"}
-                  </span>
-                </button>
-              ))}
-            </div>
+                  <div>
+                    <h3 id="reinstall-modal-title">Reinstall Operating System</h3>
+                    <p>All data will be erased. Choose your new OS.</p>
+                  </div>
+                </div>
 
-            <p className="manage-modal-warning">
-              {server.provider === "hostheaven"
-                ? "HostHeaven API will rebuild the OS now. New username and password will appear in credentials below."
-                : "If this server is on HostHeaven, rebuild runs via API immediately. Otherwise admin will deliver new credentials."}
-            </p>
+                <div className="os-picker">
+                  {(["ubuntu", "windows"] as ReinstallOsOption[]).map((os) => (
+                    <button
+                      key={os}
+                      type="button"
+                      className={`os-picker__option${selectedOs === os ? " os-picker__option--active" : ""}`}
+                      onClick={() => setSelectedOs(os)}
+                    >
+                      <span className={`os-picker__icon os-picker__icon--${os}`}>
+                        {os === "ubuntu" ? "U" : "W"}
+                      </span>
+                      <span className="os-picker__name">{reinstallOsLabels[os]}</span>
+                      <span className="os-picker__hint">
+                        {os === "ubuntu" ? "Linux · LTS" : "Windows Server"}
+                      </span>
+                    </button>
+                  ))}
+                </div>
 
-            <div className="manage-modal-actions">
-              <button type="button" className="btn btn--outline" onClick={() => setShowReinstallModal(false)}>
-                Cancel
-              </button>
-              <button type="button" className="btn btn--danger" onClick={handleReinstallConfirm}>
-                {server.provider === "hostheaven" ? "Reinstall via API" : "Confirm Reinstall"}
-              </button>
-            </div>
+                <p className="manage-modal-warning">
+                  {server.provider === "hostheaven"
+                    ? "HostHeaven API will rebuild the OS now. New username and password will appear in credentials below."
+                    : "If this server is on HostHeaven, rebuild runs via API immediately. Otherwise admin will deliver new credentials."}
+                </p>
+
+                <div className="manage-modal-actions">
+                  <button type="button" className="btn btn--outline" onClick={closeReinstallModal}>
+                    Cancel
+                  </button>
+                  <button type="button" className="btn btn--danger" onClick={handleReinstallConfirm}>
+                    {server.provider === "hostheaven" ? "Reinstall via API" : "Confirm Reinstall"}
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
@@ -324,32 +402,41 @@ export function ClientServerManagePanel({ serverId }: Props) {
       <section className="manage-pro-actions glass">
         <div className="manage-pro-actions__head">
           <h2>Server Controls</h2>
-          <p>Requests are processed by our admin team</p>
+          <p>
+            {server.provider === "hostheaven"
+              ? "Start, stop, and reinstall run via HostHeaven API"
+              : "HostHeaven servers run instantly; others go to admin queue"}
+          </p>
         </div>
 
         <div className="manage-pro-actions__grid">
-          {actionItems.map(({ action, pending, pendingLabel }) => (
-            <button
-              key={action}
-              type="button"
-              className={`manage-pro-action manage-pro-action--${action}${
-                pending ? " manage-pro-action--pending" : ""
-              }`}
-              onClick={() => handleAction(action)}
-              disabled={!!pending || isSuspended}
-            >
-              <span className="manage-pro-action__icon">{actionIcons[action]}</span>
-              <span className="manage-pro-action__text">
-                <strong>{serverActionLabels[action]}</strong>
-                <small>{serverActionDescriptions[action]}</small>
-              </span>
-              {pending && (
-                <span className="manage-pro-action__status">
-                  {pendingLabel ?? actionStatusLabels[pending.status]}
+          {actionItems.map(({ action, pending, pendingLabel }) => {
+            const isBusy = busyAction === action;
+            return (
+              <button
+                key={action}
+                type="button"
+                className={`manage-pro-action manage-pro-action--${action}${
+                  pending || isBusy ? " manage-pro-action--pending" : ""
+                }`}
+                onClick={() => handleAction(action)}
+                disabled={!!pending || isSuspended || !!busyAction}
+              >
+                <span className={`manage-pro-action__icon${isBusy ? " is-spinning" : ""}`}>
+                  {actionIcons[action]}
                 </span>
-              )}
-            </button>
-          ))}
+                <span className="manage-pro-action__text">
+                  <strong>{serverActionLabels[action]}</strong>
+                  <small>{serverActionDescriptions[action]}</small>
+                </span>
+                {(pending || isBusy) && (
+                  <span className="manage-pro-action__status">
+                    {isBusy ? "Processing…" : pendingLabel ?? actionStatusLabels[pending!.status]}
+                  </span>
+                )}
+              </button>
+            );
+          })}
         </div>
 
         {isSuspended && (
