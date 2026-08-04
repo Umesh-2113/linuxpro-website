@@ -19,9 +19,7 @@ export type PromoEntry = {
 };
 
 /** Applied on every RAM plan (checkout + admin display). */
-export const GLOBAL_STOCK_PROMOS: PromoEntry[] = [
-  { code: "LINUX50", type: "percent", value: 50 },
-];
+export const GLOBAL_STOCK_PROMOS: PromoEntry[] = [];
 
 export type RamPlan = {
   ram: number;
