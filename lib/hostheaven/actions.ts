@@ -2,7 +2,7 @@ import type { ReinstallOsOption, ServerActionType } from "@/lib/server-actions";
 import type { UserServer } from "@/lib/user-servers";
 import { isHostHeavenProvider } from "@/lib/stock-providers";
 import {
-  hostHeavenChangePassword,
+  hostHeavenChangePasswordWithRetry,
   hostHeavenFindVmIdByIp,
   hostHeavenListIsos,
   hostHeavenRebuildVm,
@@ -13,6 +13,8 @@ import {
 export type HostHeavenActionResult = {
   vmId: number;
   resolvedFromIp: boolean;
+  passwordSynced?: boolean;
+  passwordSyncError?: string;
 };
 
 async function resolveVmId(server: UserServer): Promise<HostHeavenActionResult> {
@@ -67,18 +69,28 @@ export async function executeHostHeavenServerAction(
       await hostHeavenStopVm(vmId);
       return resolved;
     case "reinstall": {
-      const isoId = await pickIsoId(vmId, options?.reinstallOs, server.ip);
-      await hostHeavenRebuildVm(vmId, isoId);
       const password = options?.newPassword?.trim();
-      if (password) {
-        try {
-          await hostHeavenChangePassword(vmId, password);
-        } catch (error) {
-          // Rebuild can still be running; credentials are stored for the client anyway.
-          console.warn("[HostHeaven] password after rebuild:", error);
-        }
+      const isoId = await pickIsoId(vmId, options?.reinstallOs, server.ip);
+
+      // Pass password into rebuild when supported by HostHeaven.
+      await hostHeavenRebuildVm(vmId, isoId, password);
+
+      if (!password) {
+        return { ...resolved, passwordSynced: false, passwordSyncError: "No password generated." };
       }
-      return resolved;
+
+      // Rebuild must finish before HostHeaven accepts password changes.
+      // Short blocking retries, then background retries continue from auto-action.
+      const sync = await hostHeavenChangePasswordWithRetry(vmId, password, {
+        attempts: 4,
+        delayMs: 8000,
+      });
+
+      return {
+        ...resolved,
+        passwordSynced: sync.synced,
+        passwordSyncError: sync.synced ? undefined : sync.error,
+      };
     }
     default:
       throw new Error(`Unsupported HostHeaven action: ${action}`);
@@ -92,6 +104,12 @@ export async function executeHostHeavenPasswordChange(
   const resolved = await resolveVmId(server);
   const password = newPassword.trim();
   if (!password) throw new Error("Password is required.");
-  await hostHeavenChangePassword(resolved.vmId, password);
-  return resolved;
+  const sync = await hostHeavenChangePasswordWithRetry(resolved.vmId, password, {
+    attempts: 3,
+    delayMs: 5000,
+  });
+  if (!sync.synced) {
+    throw new Error(sync.error || "HostHeaven password update failed.");
+  }
+  return { ...resolved, passwordSynced: true };
 }

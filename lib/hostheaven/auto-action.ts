@@ -121,9 +121,32 @@ export async function createAndMaybeAutoExecuteAction(
       });
     }
 
+    const passwordNote =
+      input.action === "reinstall"
+        ? result.passwordSynced
+          ? " Password synced to HostHeaven."
+          : ` Rebuild started; HostHeaven password sync pending (${result.passwordSyncError || "retry later"}).`
+        : "";
+
+    // If password not synced yet, keep retrying in background on this Node process.
+    if (input.action === "reinstall" && newPassword && !result.passwordSynced) {
+      void (async () => {
+        const { hostHeavenChangePasswordWithRetry } = await import("@/lib/hostheaven/client");
+        const sync = await hostHeavenChangePasswordWithRetry(result.vmId, newPassword, {
+          attempts: 18,
+          delayMs: 20000,
+        });
+        await dbUpdateServerAction(pending.id, {
+          adminNote: sync.synced
+            ? "Completed via HostHeaven API. Password synced to HostHeaven."
+            : `Rebuild done on LinuxPro; HostHeaven password sync failed: ${sync.error || "unknown"}`,
+        });
+      })();
+    }
+
     const completed = await dbUpdateServerAction(pending.id, {
       status: "completed",
-      adminNote: "Completed automatically via HostHeaven API.",
+      adminNote: `Completed automatically via HostHeaven API.${passwordNote}`,
       newUsername,
       newPassword,
     });

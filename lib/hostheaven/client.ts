@@ -437,6 +437,73 @@ export async function hostHeavenChangePassword(
   );
 }
 
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/** HostHeaven rejects password changes while rebuild is still running — retry until ready. */
+export async function hostHeavenChangePasswordWithRetry(
+  vmId: number,
+  newPassword: string,
+  options?: { attempts?: number; delayMs?: number }
+): Promise<{ synced: boolean; attempts: number; error?: string }> {
+  const attempts = options?.attempts ?? 12;
+  const delayMs = options?.delayMs ?? 15000;
+  let lastError = "";
+
+  for (let i = 1; i <= attempts; i++) {
+    try {
+      await hostHeavenChangePassword(vmId, newPassword);
+      return { synced: true, attempts: i };
+    } catch (error) {
+      lastError = error instanceof Error ? error.message : "Password sync failed.";
+      if (i < attempts) {
+        await sleep(delayMs);
+      }
+    }
+  }
+
+  return { synced: false, attempts, error: lastError };
+}
+
+export async function hostHeavenRebuildVm(
+  vmId: number,
+  newIsoId: number,
+  newPassword?: string
+): Promise<void> {
+  const session = await getHostHeavenSession();
+  if (session.isReseller) {
+    await hostHeavenRequest(
+      `/api/reseller/user/vms/${vmId}/rebuild`,
+      {
+        method: "POST",
+        body: JSON.stringify({
+          newIsoId,
+          ...(newPassword ? { newPassword, password: newPassword } : {}),
+        }),
+      },
+      true,
+      true
+    );
+    return;
+  }
+
+  const qs = new URLSearchParams({ isoId: String(newIsoId) });
+  if (newPassword) qs.set("password", newPassword);
+
+  await hostHeavenRequest(
+    `/api/users/${session.userId}/vms/${vmId}/rebuild?${qs.toString()}`,
+    {
+      method: "POST",
+      ...(newPassword
+        ? { body: JSON.stringify({ password: newPassword }) }
+        : {}),
+    },
+    true,
+    false
+  );
+}
+
 function normalizeIso(entry: unknown): HostHeavenIso | null {
   if (!entry || typeof entry !== "object") return null;
   const raw = entry as Record<string, unknown>;
@@ -501,29 +568,6 @@ export async function hostHeavenListIsos(vmId: number, serverIp?: string): Promi
     return Array.isArray(data) ? data : [];
   }
   return listUserIsos(serverIp);
-}
-
-export async function hostHeavenRebuildVm(vmId: number, newIsoId: number): Promise<void> {
-  const session = await getHostHeavenSession();
-  if (session.isReseller) {
-    await hostHeavenRequest(
-      `/api/reseller/user/vms/${vmId}/rebuild`,
-      {
-        method: "POST",
-        body: JSON.stringify({ newIsoId }),
-      },
-      true,
-      true
-    );
-    return;
-  }
-
-  await hostHeavenRequest(
-    `/api/users/${session.userId}/vms/${vmId}/rebuild?isoId=${encodeURIComponent(String(newIsoId))}`,
-    { method: "POST" },
-    true,
-    false
-  );
 }
 
 export function isHostHeavenConfigured(): boolean {

@@ -136,7 +136,7 @@ export function ClientServerManagePanel({ serverId }: Props) {
         if (viaApi) {
           setToast(
             action === "reinstall"
-              ? `${label} started via HostHeaven API — new credentials updated below.`
+              ? `${label} started via HostHeaven — new password saved here and syncing to HostHeaven (may take 1–2 min while rebuild finishes).`
               : `${label} completed via HostHeaven API.`
           );
           await fetchServers(user.email);
