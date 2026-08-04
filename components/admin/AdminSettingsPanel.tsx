@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { apiGet } from "@/lib/api-client";
+import { apiGet, apiPost } from "@/lib/api-client";
 
 type HostHeavenStatus = {
   ok: boolean;
@@ -13,9 +13,20 @@ type HostHeavenStatus = {
   message?: string;
 };
 
+type HostHeavenSyncResult = {
+  ok: boolean;
+  message: string;
+  pools?: number;
+  updated?: number;
+  created?: number;
+  availableIps?: number;
+};
+
 export function AdminSettingsPanel() {
   const [hostHeaven, setHostHeaven] = useState<HostHeavenStatus | null>(null);
   const [hostHeavenLoading, setHostHeavenLoading] = useState(false);
+  const [syncLoading, setSyncLoading] = useState(false);
+  const [syncResult, setSyncResult] = useState<HostHeavenSyncResult | null>(null);
 
   const testHostHeaven = useCallback(async () => {
     setHostHeavenLoading(true);
@@ -29,6 +40,22 @@ export function AdminSettingsPanel() {
       });
     } finally {
       setHostHeavenLoading(false);
+    }
+  }, []);
+
+  const syncStock = useCallback(async () => {
+    setSyncLoading(true);
+    setSyncResult(null);
+    try {
+      const data = await apiPost<HostHeavenSyncResult>("/api/admin/hostheaven/sync", {});
+      setSyncResult(data);
+    } catch {
+      setSyncResult({
+        ok: false,
+        message: "Stock sync failed.",
+      });
+    } finally {
+      setSyncLoading(false);
     }
   }, []);
 
@@ -49,8 +76,8 @@ export function AdminSettingsPanel() {
         <section className="admin-panel glass">
           <h2>HostHeaven VPS API</h2>
           <p className="admin-panel__note">
-            Used when stock is set to <strong>Manage via → HostHeaven VPS</strong>. Start/stop/reinstall
-            runs automatically from Admin → Manage when you click Processing.
+            Live VPS/IP stock syncs from HostHeaven automatically. After payment, matching free
+            IPs and passwords are delivered to the customer without manual steps.
           </p>
 
           {hostHeavenLoading ? (
@@ -94,14 +121,33 @@ export function AdminSettingsPanel() {
             </p>
           ) : null}
 
-          <button
-            type="button"
-            className="btn btn--outline btn--sm"
-            onClick={() => void testHostHeaven()}
-            disabled={hostHeavenLoading}
-          >
-            {hostHeavenLoading ? "Testing…" : "Test connection again"}
-          </button>
+          <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+            <button
+              type="button"
+              className="btn btn--outline btn--sm"
+              onClick={() => void testHostHeaven()}
+              disabled={hostHeavenLoading}
+            >
+              {hostHeavenLoading ? "Testing…" : "Test connection again"}
+            </button>
+            <button
+              type="button"
+              className="btn btn--primary btn--sm"
+              onClick={() => void syncStock()}
+              disabled={syncLoading || !hostHeaven?.ok}
+            >
+              {syncLoading ? "Syncing…" : "Sync live stock now"}
+            </button>
+          </div>
+
+          {syncResult ? (
+            <p className={`admin-panel__note${syncResult.ok ? "" : " manage-reinstall-error"}`}>
+              {syncResult.message}
+              {syncResult.ok
+                ? ` (updated ${syncResult.updated ?? 0}, created ${syncResult.created ?? 0}, free IPs ${syncResult.availableIps ?? 0})`
+                : ""}
+            </p>
+          ) : null}
 
           <div className="admin-panel__note" style={{ marginTop: "1rem" }}>
             <strong>.env variables:</strong>
@@ -129,12 +175,12 @@ export function AdminSettingsPanel() {
         </section>
 
         <section className="admin-panel glass">
-          <h2>How to use HostHeaven API</h2>
+          <h2>How auto delivery works</h2>
           <ol className="admin-panel__note" style={{ paddingLeft: "1.2rem" }}>
-            <li>Add HOSTHEAVEN_* vars in .env (local) or VPS /var/www/linuxpro-website/.env</li>
-            <li>Admin → Stock → Edit IP → Manage via = HostHeaven VPS</li>
-            <li>Deliver order with exact IP (e.g. 162.4.147.118)</li>
-            <li>Customer requests start/stop → Admin → Manage → Processing</li>
+            <li>Keep HOSTHEAVEN_* vars in VPS .env</li>
+            <li>Click Sync live stock (or wait — stock page syncs automatically)</li>
+            <li>Customer pays with Wallet / Cashfree</li>
+            <li>Matching free HostHeaven IP + password is delivered to My Servers</li>
           </ol>
         </section>
       </div>

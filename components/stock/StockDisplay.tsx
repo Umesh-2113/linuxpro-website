@@ -488,7 +488,7 @@ export function StockDisplay({ variant = "public" }: Props) {
             setBuyItem(null);
             setOrderSuccess(
               paymentMethod === "wallet"
-                ? `Order ${orderId} placed successfully! Payment received from your wallet. Admin will deliver soon.`
+                ? `Order ${orderId} placed successfully! Payment received from your wallet. Check My Servers for IP and password.`
                 : `Order ${orderId} created — complete payment on Cashfree.`
             );
             refresh();

@@ -120,7 +120,8 @@ export function PaymentCallbackPanel() {
         </p>
         {!walletTopup && (
           <p className="payment-callback__hint">
-            Admin will deliver your server credentials soon. Track in Manage Orders.
+            Your IP and password are delivered automatically. Check My Servers — if
+            not ready yet, track status in Manage Orders.
           </p>
         )}
         <div className="payment-callback__actions">

@@ -254,12 +254,12 @@ export function ClientOrdersPanel() {
                       {o.paymentStatus === "pending"
                         ? "Complete payment to continue. Use My Wallet or Cashfree at checkout."
                         : o.fulfillmentStatus === "processing"
-                          ? "Admin is preparing your server credentials…"
+                          ? "Preparing your server credentials automatically…"
                           : isDelivered
-                            ? "Delivered — refresh if server link is not visible yet."
+                            ? "Delivered — open My Servers for IP and password."
                             : o.paymentGateway === "wallet"
-                              ? "Wallet payment confirmed — admin will deliver your server soon."
-                              : "Payment confirmed — admin will deliver your server soon."}
+                              ? "Wallet payment confirmed — credentials are being assigned automatically."
+                              : "Payment confirmed — credentials are being assigned automatically."}
                     </p>
                   )}
                 </div>

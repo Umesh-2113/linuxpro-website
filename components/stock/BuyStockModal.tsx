@@ -56,6 +56,8 @@ export function BuyStockModal({ item, onClose, onSuccess }: Props) {
   const [walletSuccess, setWalletSuccess] = useState<{
     orderId: string;
     amount: number;
+    delivered?: boolean;
+    deliverIp?: string;
   } | null>(null);
 
   const selectedPlan = getRamPlan(item, selectedRamGb);
@@ -162,7 +164,12 @@ export function BuyStockModal({ item, onClose, onSuccess }: Props) {
           return;
         }
         await fetchWallet();
-        setWalletSuccess({ orderId: order.id, amount: total });
+        setWalletSuccess({
+          orderId: order.id,
+          amount: total,
+          delivered: paid.fulfillmentStatus === "delivered",
+          deliverIp: paid.deliverIp || undefined,
+        });
       } catch (err) {
         setLoading(false);
         setError(err instanceof Error ? err.message : "Wallet payment failed.");
@@ -225,7 +232,9 @@ export function BuyStockModal({ item, onClose, onSuccess }: Props) {
               Order: <strong>{walletSuccess.orderId}</strong>
             </p>
             <p className="payment-callback__hint">
-              Payment received. Admin will deliver your server credentials soon.
+              {walletSuccess.delivered
+                ? `IP and password ready${walletSuccess.deliverIp ? ` (${walletSuccess.deliverIp})` : ""}. Open My Servers to view credentials.`
+                : "Payment received. Your IP and password will appear under My Servers automatically when ready."}
             </p>
             <div className="payment-callback__actions">
               <Link href="/client/orders" className="btn btn--primary">

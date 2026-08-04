@@ -2,6 +2,7 @@ import {
   dbCreateServersFromOrder,
   dbDeleteServersByOrder,
   dbUpdateServersCredentialsForOrder,
+  type DeliverServerCreds,
 } from "@/lib/db/servers";
 import { dbGetStockById, dbUpdateStockItem } from "@/lib/db/stock";
 import {
@@ -211,32 +212,47 @@ export async function dbUpdateOrder(
   return updated;
 }
 
-export async function dbDeliverOrderToCustomer(
+export async function dbDeliverOrderUnits(
   id: string,
-  creds: { ip: string; username: string; password: string }
+  units: DeliverServerCreds[]
 ): Promise<Order | null> {
-  const ip = creds.ip.trim();
-  const username = creds.username.trim();
-  const password = creds.password;
-  if (!ip || !username || !password) return null;
+  const cleaned = units
+    .map((unit) => ({
+      ip: unit.ip.trim(),
+      username: unit.username.trim(),
+      password: unit.password,
+      providerVmId: unit.providerVmId,
+      provider: unit.provider,
+    }))
+    .filter((unit) => unit.ip && unit.username && unit.password);
+
+  if (cleaned.length === 0) return null;
 
   const order = await dbGetOrderById(id);
   if (!order) return null;
   if (order.paymentStatus !== "received") return null;
   if (order.fulfillmentStatus === "delivered") return null;
 
+  const primary = cleaned[0];
   const updated = await dbUpdateOrder(id, {
     fulfillmentStatus: "delivered",
-    deliverIp: ip,
-    deliverUsername: username,
-    deliverPassword: password,
+    deliverIp: primary.ip,
+    deliverUsername: primary.username,
+    deliverPassword: primary.password,
   });
 
   if (updated) {
-    await dbCreateServersFromOrder(updated, { ip, username, password });
+    await dbCreateServersFromOrder(updated, cleaned);
   }
 
   return updated;
+}
+
+export async function dbDeliverOrderToCustomer(
+  id: string,
+  creds: { ip: string; username: string; password: string }
+): Promise<Order | null> {
+  return dbDeliverOrderUnits(id, [creds]);
 }
 
 export async function dbUpdateOrderCredentials(

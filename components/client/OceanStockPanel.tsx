@@ -244,7 +244,7 @@ export function OceanStockPanel({ category }: Props) {
             setBuyItem(null);
             setOrderSuccess(
               paymentMethod === "wallet"
-                ? `Order ${orderId} placed — paid from wallet. Admin will deliver soon.`
+                ? `Order ${orderId} placed — paid from wallet. Check My Servers for IP and password.`
                 : `Order ${orderId} created — complete payment on Cashfree.`
             );
             void refresh();

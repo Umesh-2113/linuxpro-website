@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { dbConfirmCashfreePayment, dbGetOrderById } from "@/lib/db/orders";
+import { autoDeliverPaidOrder } from "@/lib/hostheaven/provision";
+import { syncHostHeavenStockToDb } from "@/lib/hostheaven/sync-stock";
 import { requireClientSession } from "@/lib/server-session";
 
 type Params = { params: Promise<{ id: string }> };
@@ -28,7 +30,11 @@ export async function POST(req: Request, { params }: Params) {
     if (!updated) {
       return NextResponse.json({ error: "Order not found." }, { status: 404 });
     }
-    return NextResponse.json(updated);
+
+    const result = await autoDeliverPaidOrder(id);
+    void syncHostHeavenStockToDb({ force: true }).catch(() => undefined);
+
+    return NextResponse.json(result.order ?? updated);
   } catch (error) {
     console.error("[API orders cashfree]", error);
     return NextResponse.json({ error: "Failed to confirm payment." }, { status: 500 });

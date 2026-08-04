@@ -14,10 +14,28 @@ type HostHeavenSession = {
 
 type UserOrderOverview = {
   vmId?: number;
+  orderId?: string;
   ipAddress?: string;
   dbStatus?: string;
+  liveState?: string;
   osType?: string;
   os?: string;
+  assigned?: boolean;
+  locked?: boolean;
+  assignedToEmail?: string | null;
+  monthlyPrice?: number;
+  cores?: number;
+  ram?: number;
+  storage?: number;
+  serverPlan?: string;
+  zoneName?: string;
+};
+
+export type HostHeavenVmCredentials = {
+  vmId: number;
+  ip: string;
+  username: string;
+  password: string;
 };
 
 type ZoneSummary = { id: number; name?: string; status?: string };
@@ -186,6 +204,14 @@ export type HostHeavenIso = {
 export type HostHeavenVm = {
   id: number;
   ips: string[];
+  status?: string;
+  assigned?: boolean;
+  locked?: boolean;
+  os?: string;
+  monthlyPrice?: number;
+  cores?: number;
+  ram?: number;
+  storage?: number;
   raw: Record<string, unknown>;
 };
 
@@ -263,7 +289,22 @@ function normalizeUserOrderVm(order: UserOrderOverview): HostHeavenVm | null {
   if (!order.vmId || order.vmId <= 0) return null;
   const raw: Record<string, unknown> = { ...order };
   const ips = order.ipAddress ? [normalizeIp(order.ipAddress)] : [];
-  return { id: Math.round(order.vmId), ips, raw };
+  return {
+    id: Math.round(order.vmId),
+    ips,
+    status: order.dbStatus,
+    assigned: Boolean(order.assigned),
+    locked: Boolean(order.locked),
+    os: order.os || order.osType,
+    monthlyPrice:
+      typeof order.monthlyPrice === "number" && order.monthlyPrice > 0
+        ? order.monthlyPrice
+        : undefined,
+    cores: typeof order.cores === "number" && order.cores > 0 ? order.cores : undefined,
+    ram: typeof order.ram === "number" && order.ram > 0 ? order.ram : undefined,
+    storage: typeof order.storage === "number" && order.storage > 0 ? order.storage : undefined,
+    raw,
+  };
 }
 
 async function listResellerVms(): Promise<HostHeavenVm[]> {
@@ -329,6 +370,81 @@ async function enrichVmIps(vms: HostHeavenVm[]): Promise<HostHeavenVm[]> {
       }
     })
   );
+}
+
+function pickCredentialField(
+  data: Record<string, unknown>,
+  keys: string[]
+): string {
+  for (const key of keys) {
+    const value = data[key];
+    if (typeof value === "string" && value.trim()) return value.trim();
+  }
+  return "";
+}
+
+/** Fetch live IP + username + password for a HostHeaven VM. */
+export async function hostHeavenGetVmCredentials(
+  vmId: number,
+  fallbackIp?: string
+): Promise<HostHeavenVmCredentials> {
+  const session = await getHostHeavenSession();
+  let username = "root";
+  let password = "";
+  let ip = (fallbackIp ?? "").trim();
+
+  try {
+    const pwdData = await hostHeavenRequest<Record<string, unknown>>(
+      `/api/users/${session.userId}/vms/${vmId}/password`,
+      { method: "GET" },
+      true,
+      false
+    );
+    password = pickCredentialField(pwdData, ["password", "rootPassword", "passwd"]);
+    username =
+      pickCredentialField(pwdData, ["username", "user", "login", "rootUser"]) || username;
+  } catch {
+    /* fall through to order details */
+  }
+
+  try {
+    const details = await hostHeavenRequest<Record<string, unknown>>(
+      `/api/users/orders/${vmId}/details`,
+      { method: "GET" },
+      true,
+      false
+    );
+    if (!password) {
+      password = pickCredentialField(details, [
+        "password",
+        "rootPassword",
+        "passwd",
+        "vpsPassword",
+      ]);
+    }
+    username =
+      pickCredentialField(details, ["username", "user", "login", "rootUser"]) || username;
+    if (!ip) {
+      const detailIps = extractVmIps(details);
+      if (detailIps[0]) ip = detailIps[0];
+    }
+  } catch {
+    /* ignore — password endpoint may already be enough */
+  }
+
+  if (!ip) {
+    const vms = await hostHeavenListVms();
+    const match = vms.find((vm) => vm.id === vmId);
+    if (match?.ips[0]) ip = match.ips[0];
+  }
+
+  if (!ip || !password) {
+    throw new Error(
+      `Could not load credentials for HostHeaven VM ${vmId}. IP or password missing.`
+    );
+  }
+
+  return { vmId, ip, username: username || "root", password };
 }
 
 /** Find HostHeaven VM database id by matching the server's public IPv4. */

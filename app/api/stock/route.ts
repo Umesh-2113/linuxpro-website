@@ -4,12 +4,25 @@ import {
   dbGetStock,
   dbGetStockByType,
 } from "@/lib/db/stock";
+import { syncHostHeavenStockToDb } from "@/lib/hostheaven/sync-stock";
+import { isHostHeavenConfigured } from "@/lib/hostheaven/client";
 import type { StockType } from "@/lib/stock";
 
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
     const type = searchParams.get("type") as StockType | "all" | null;
+    const forceSync = searchParams.get("sync") === "1";
+
+    if (isHostHeavenConfigured()) {
+      await syncHostHeavenStockToDb({
+        force: forceSync,
+        minIntervalMs: forceSync ? 0 : 90_000,
+      }).catch((error) => {
+        console.error("[API stock sync]", error);
+      });
+    }
+
     const items = type ? await dbGetStockByType(type) : await dbGetStock();
     return NextResponse.json(items);
   } catch (error) {

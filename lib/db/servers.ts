@@ -1,7 +1,16 @@
 import { getOrderSubtitle, type Order } from "@/lib/orders";
+import type { StockProvider } from "@/lib/stock-providers";
 import type { UserServer } from "@/lib/user-servers";
 import { dbGetStockById } from "@/lib/db/stock";
 import { getCollection } from "@/lib/mongodb";
+
+export type DeliverServerCreds = {
+  ip: string;
+  username: string;
+  password: string;
+  providerVmId?: number;
+  provider?: StockProvider;
+};
 
 async function collection() {
   return getCollection<UserServer>("servers");
@@ -35,10 +44,14 @@ export async function dbGetServerById(id: string): Promise<UserServer | null> {
 
 export async function dbCreateServersFromOrder(
   order: Order,
-  creds: { ip: string; username: string; password: string }
+  creds: DeliverServerCreds | DeliverServerCreds[]
 ): Promise<UserServer[]> {
   const existing = await dbGetServersByOrder(order.id);
   if (existing.length > 0) return existing;
+
+  const units = Array.isArray(creds)
+    ? creds
+    : Array.from({ length: order.quantity }, () => creds);
 
   const now = new Date().toISOString();
   const plan = getOrderSubtitle(order);
@@ -46,6 +59,8 @@ export async function dbCreateServersFromOrder(
   const created: UserServer[] = [];
 
   for (let i = 0; i < order.quantity; i++) {
+    const unit = units[i] ?? units[0];
+    if (!unit) continue;
     const suffix = order.quantity > 1 ? `-${i + 1}` : "";
     created.push({
       id: `srv-${order.id}${suffix}`,
@@ -56,16 +71,16 @@ export async function dbCreateServersFromOrder(
       name: serverNameFromOrder(order, `srv-${order.id}${suffix}`, order.id),
       type: order.stockType,
       plan,
-      ip: creds.ip.trim(),
-      username: creds.username.trim(),
-      password: creds.password,
+      ip: unit.ip.trim(),
+      username: unit.username.trim(),
+      password: unit.password,
       port: order.port,
       region: order.region,
       os: order.os,
       status: "active",
       powerState: "running",
-      provider: stock?.provider,
-      providerVmId: stock?.providerVmId,
+      provider: unit.provider ?? stock?.provider,
+      providerVmId: unit.providerVmId ?? stock?.providerVmId,
       createdAt: now,
     });
   }
