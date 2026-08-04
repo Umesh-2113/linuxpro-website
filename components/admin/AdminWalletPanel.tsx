@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { apiGet, apiPost } from "@/lib/api-client";
 import { fetchUsers, getUsers } from "@/lib/users";
 import type { WalletAccountSummary, WalletTransaction } from "@/lib/db/wallet";
@@ -43,6 +43,9 @@ export function AdminWalletPanel() {
   const [adjustType, setAdjustType] = useState<"credit" | "debit">("credit");
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
+  const [selectedEmail, setSelectedEmail] = useState("");
+  const adjustFormRef = useRef<HTMLElement>(null);
+  const amountInputRef = useRef<HTMLInputElement>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -68,6 +71,16 @@ export function AdminWalletPanel() {
     const q = filterEmail.trim().toLowerCase();
     return overview.transactions.filter((tx) => tx.userEmail.includes(q));
   }, [overview.transactions, filterEmail]);
+
+  const handleManageAccount = (accountEmail: string) => {
+    setSelectedEmail(accountEmail);
+    setEmail(accountEmail);
+    setFilterEmail(accountEmail);
+    setError("");
+    setSuccess(`Managing wallet for ${accountEmail}. Add or deduct money below.`);
+    adjustFormRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    window.setTimeout(() => amountInputRef.current?.focus(), 300);
+  };
 
   const handleAdjust = async () => {
     setError("");
@@ -141,8 +154,17 @@ export function AdminWalletPanel() {
       </div>
 
       <div className="admin-wallet-layout">
-        <section className="admin-panel glass admin-wallet-adjust">
+        <section
+          ref={adjustFormRef}
+          id="admin-wallet-adjust-form"
+          className="admin-panel glass admin-wallet-adjust"
+        >
           <h2>Adjust Wallet Balance</h2>
+          {selectedEmail && (
+            <div className="admin-wallet-selected">
+              Selected: <strong>{selectedEmail}</strong>
+            </div>
+          )}
           <p className="admin-wallet-adjust__hint">
             Manually credit (add) or debit (remove) money from a customer wallet.
           </p>
@@ -186,6 +208,7 @@ export function AdminWalletPanel() {
             <label htmlFor="admin-wallet-amount">Amount (₹)</label>
             <input
               id="admin-wallet-amount"
+              ref={amountInputRef}
               type="number"
               min={1}
               max={500000}
@@ -238,18 +261,22 @@ export function AdminWalletPanel() {
                 </thead>
                 <tbody>
                   {overview.accounts.map((account) => (
-                    <tr key={account.email}>
+                    <tr
+                      key={account.email}
+                      className={
+                        selectedEmail === account.email ? "admin-wallet-row--selected" : undefined
+                      }
+                    >
                       <td>{account.email}</td>
                       <td><strong>{formatAmount(account.balance)}</strong></td>
                       <td>{formatDate(account.updatedAt)}</td>
                       <td>
                         <button
                           type="button"
-                          className="btn btn--ghost btn--sm"
-                          onClick={() => {
-                            setEmail(account.email);
-                            setFilterEmail(account.email);
-                          }}
+                          className={`btn btn--sm${
+                            selectedEmail === account.email ? " btn--primary" : " btn--outline"
+                          }`}
+                          onClick={() => handleManageAccount(account.email)}
                         >
                           Manage
                         </button>
