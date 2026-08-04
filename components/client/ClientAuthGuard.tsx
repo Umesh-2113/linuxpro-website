@@ -1,11 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { setUser, userFromSession, type User } from "@/lib/auth";
 import { bootstrapClientData } from "@/lib/data-bootstrap";
 import { ClientSidebar } from "./ClientSidebar";
+import { ClientTopBar } from "./ClientTopBar";
+import { ClientPromoBanner } from "./ClientPromoBanner";
+import { ClientCartDrawer } from "./ClientCartDrawer";
+import { HomeWhatsAppFloat } from "@/components/home/HomeWhatsAppFloat";
 import { NewsPopup } from "@/components/news/NewsPopup";
 import { PageAmbient } from "@/components/ui/PageAmbient";
 
@@ -14,6 +18,7 @@ export function ClientAuthGuard({ children }: { children: React.ReactNode }) {
   const { data: session, status } = useSession();
   const [user, setUserState] = useState<User | null>(null);
   const [ready, setReady] = useState(false);
+  const [cartOpen, setCartOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -57,11 +62,23 @@ export function ClientAuthGuard({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="client-layout site-shell">
+    <div className="client-layout client-layout--ocean site-shell">
       <PageAmbient variant="minimal" />
       <NewsPopup enabled={ready} />
-      <ClientSidebar userName={user.name} userAvatar={user.avatarUrl} />
-      <div className="client-main">{children}</div>
+      <Suspense fallback={null}>
+        <ClientSidebar
+          userName={user.name}
+          userEmail={user.email}
+          userAvatar={user.avatarUrl}
+        />
+      </Suspense>
+      <div className="client-body">
+        <ClientPromoBanner />
+        <ClientTopBar onCartOpen={() => setCartOpen(true)} />
+        <div className="client-main client-main--ocean">{children}</div>
+      </div>
+      <ClientCartDrawer open={cartOpen} onClose={() => setCartOpen(false)} />
+      <HomeWhatsAppFloat />
     </div>
   );
 }

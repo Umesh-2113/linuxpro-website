@@ -5,6 +5,7 @@ import { ThemeProvider } from "@/components/ThemeProvider";
 import "./globals.css";
 import "./ui-premium.css";
 import "./home-redesign.css";
+import "./client-ocean.css";
 
 const inter = Inter({
   subsets: ["latin"],

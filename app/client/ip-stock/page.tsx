@@ -1,5 +1,5 @@
-import { StockDisplay } from "@/components/stock/StockDisplay";
+import { OceanStockPanel } from "@/components/client/OceanStockPanel";
 
-export default function IpStockPage() {
-  return <StockDisplay variant="client" />;
+export default function AllPlansPage() {
+  return <OceanStockPanel category="all" />;
 }

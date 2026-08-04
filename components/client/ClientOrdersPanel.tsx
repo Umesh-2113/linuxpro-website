@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import {
   fetchOrders,
   formatOrderDate,
@@ -36,6 +37,8 @@ function getStatusTone(order: Order): "success" | "pending" | "cancelled" {
 }
 
 export function ClientOrdersPanel() {
+  const searchParams = useSearchParams();
+  const tab = searchParams.get("tab") === "history" ? "history" : "manage";
   const [orders, setOrders] = useState<Order[]>([]);
 
   const load = useCallback(() => {
@@ -71,6 +74,17 @@ export function ClientOrdersPanel() {
     return { total: orders.length, paid, delivered, awaiting };
   }, [orders]);
 
+  const visibleOrders = useMemo(() => {
+    if (tab === "history") {
+      return orders.filter(
+        (o) => o.fulfillmentStatus === "delivered" || o.fulfillmentStatus === "cancelled"
+      );
+    }
+    return orders.filter(
+      (o) => o.fulfillmentStatus !== "delivered" && o.fulfillmentStatus !== "cancelled"
+    );
+  }, [orders, tab]);
+
   return (
     <div className="client-orders-page">
       <header className="client-orders-hero">
@@ -78,8 +92,12 @@ export function ClientOrdersPanel() {
         <div className="client-orders-hero__content">
           <div>
             <span className="client-orders-hero__eyebrow">Order Center</span>
-            <h1>Manage Orders</h1>
-            <p>Track payment, delivery, and open your server when it&apos;s ready.</p>
+            <h1>{tab === "history" ? "Order History" : "Manage Orders"}</h1>
+            <p>
+              {tab === "history"
+                ? "View completed and cancelled orders."
+                : "Track payment, delivery, and open your server when it's ready."}
+            </p>
           </div>
           <Link href="/client/ip-stock" className="btn btn--primary btn--sm">
             + Buy IP Stock
@@ -87,7 +105,22 @@ export function ClientOrdersPanel() {
         </div>
       </header>
 
-      {orders.length > 0 && (
+      <div className="ocean-orders-tabs">
+        <Link
+          href="/client/orders"
+          className={`ocean-orders-tabs__btn${tab === "manage" ? " active" : ""}`}
+        >
+          Manage Orders
+        </Link>
+        <Link
+          href="/client/orders?tab=history"
+          className={`ocean-orders-tabs__btn${tab === "history" ? " active" : ""}`}
+        >
+          Order History
+        </Link>
+      </div>
+
+      {orders.length > 0 && tab === "manage" && (
         <div className="client-orders-stats">
           <div className="client-orders-stat glass">
             <span className="client-orders-stat__value">{stats.total}</span>
@@ -108,18 +141,24 @@ export function ClientOrdersPanel() {
         </div>
       )}
 
-      {orders.length === 0 ? (
+      {visibleOrders.length === 0 ? (
         <div className="client-orders-empty glass">
           <div className="client-orders-empty__icon">📦</div>
-          <h3>No orders yet</h3>
-          <p>Browse IP stock and place your first order in seconds.</p>
-          <Link href="/client/ip-stock" className="btn btn--primary">
-            Browse IP Stock
-          </Link>
+          <h3>{tab === "history" ? "No past orders" : "No active orders"}</h3>
+          <p>
+            {tab === "history"
+              ? "Completed orders will appear here."
+              : "Browse IP stock and place your first order in seconds."}
+          </p>
+          {tab !== "history" && (
+            <Link href="/client/ip-stock" className="btn btn--primary">
+              Browse IP Stock
+            </Link>
+          )}
         </div>
       ) : (
         <div className="client-orders-list">
-          {orders.map((o) => {
+          {visibleOrders.map((o) => {
             const servers = getServersByOrder(o.id);
             const isDelivered = o.fulfillmentStatus === "delivered";
             const progress = getOrderProgress(o);
