@@ -55,6 +55,13 @@ function NavIcon({ type }: { type: string }) {
         <rect x="1" y="4" width="22" height="16" rx="2" /><path d="M1 10h22" />
       </svg>
     ),
+    wallet: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <path d="M21 12V7H5a2 2 0 010-4h14v4" />
+        <path d="M3 5v14a2 2 0 002 2h16v-5" />
+        <path d="M18 12a2 2 0 100 4h4v-4h-4z" />
+      </svg>
+    ),
     settings: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
         <circle cx="12" cy="12" r="3" />

@@ -227,3 +227,62 @@ export async function dbConfirmWalletTopup(
   const updatedTopup = await col.findOne({ id: topupId });
   return { topup: updatedTopup!, balance };
 }
+
+export type WalletAccountSummary = {
+  email: string;
+  balance: number;
+  updatedAt: string;
+};
+
+export async function dbGetAllWalletAccounts(): Promise<WalletAccountSummary[]> {
+  return (await accountsCollection()).find({}).sort({ balance: -1 }).toArray();
+}
+
+export async function dbGetAllWalletTransactions(
+  limit = 100
+): Promise<WalletTransaction[]> {
+  return (await transactionsCollection())
+    .find({})
+    .sort({ createdAt: -1 })
+    .limit(limit)
+    .toArray();
+}
+
+export async function dbGetWalletOverview(limit = 100) {
+  const accounts = await dbGetAllWalletAccounts();
+  const transactions = await dbGetAllWalletTransactions(limit);
+  const totalBalance = accounts.reduce((sum, account) => sum + account.balance, 0);
+  return {
+    accounts,
+    transactions,
+    totalBalance,
+    accountCount: accounts.length,
+  };
+}
+
+export async function dbAdminAdjustWallet(data: {
+  userEmail: string;
+  type: WalletTransactionType;
+  amount: number;
+  note: string;
+}): Promise<{ balance: number; transaction: WalletTransaction }> {
+  const note = data.note.trim() || "Admin adjustment";
+  const description =
+    data.type === "credit" ? `Admin credit: ${note}` : `Admin debit: ${note}`;
+
+  if (data.type === "credit") {
+    return dbCreditWallet({
+      userEmail: data.userEmail,
+      amount: data.amount,
+      description,
+      refId: "ADMIN",
+    });
+  }
+
+  return dbDebitWallet({
+    userEmail: data.userEmail,
+    amount: data.amount,
+    description,
+    refId: "ADMIN",
+  });
+}

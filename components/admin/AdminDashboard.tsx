@@ -6,7 +6,6 @@ import { getOrderStats } from "@/lib/orders";
 import { getStock } from "@/lib/stock";
 import { getTickets } from "@/lib/tickets";
 import { getUsers } from "@/lib/users";
-import { invoices } from "@/lib/client-data";
 import { ADMIN_BASE_PATH } from "@/lib/admin";
 
 export function AdminDashboard() {
@@ -16,7 +15,7 @@ export function AdminDashboard() {
     openTickets: 0,
     totalTickets: 0,
     users: 0,
-    dueInvoices: 0,
+    walletTotal: 0,
     pendingOrders: 0,
   } as {
     stock: number;
@@ -24,7 +23,7 @@ export function AdminDashboard() {
     openTickets: number;
     totalTickets: number;
     users: number;
-    dueInvoices: number;
+    walletTotal: number;
     pendingOrders: number;
   });
 
@@ -32,15 +31,24 @@ export function AdminDashboard() {
     const stock = getStock();
     const tickets = getTickets();
     const orderStats = getOrderStats();
-    setStats({
+    setStats((prev) => ({
+      ...prev,
       stock: stock.length,
       stockUnits: stock.reduce((s, i) => s + i.quantity, 0),
       openTickets: tickets.filter((t) => t.status === "open").length,
       totalTickets: tickets.length,
       users: getUsers().length,
-      dueInvoices: invoices.filter((i) => i.status === "due").length,
       pendingOrders: orderStats.paymentPending,
-    });
+    }));
+
+    fetch("/api/admin/wallet", { cache: "no-store" })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.totalBalance != null) {
+          setStats((prev) => ({ ...prev, walletTotal: data.totalBalance }));
+        }
+      })
+      .catch(() => {});
   }, []);
 
   const cards = [
@@ -48,7 +56,13 @@ export function AdminDashboard() {
     { label: "Pending Orders", value: stats.pendingOrders, sub: "awaiting payment", href: `${ADMIN_BASE_PATH}/orders`, color: "warning" },
     { label: "Open Tickets", value: stats.openTickets, sub: `${stats.totalTickets} total`, href: `${ADMIN_BASE_PATH}/tickets`, color: "warning" },
     { label: "Registered Users", value: stats.users, sub: "client accounts", href: `${ADMIN_BASE_PATH}/users`, color: "info" },
-    { label: "Due Invoices", value: stats.dueInvoices, sub: "pending payment", href: `${ADMIN_BASE_PATH}/billing`, color: "danger" },
+    {
+      label: "Total Wallet",
+      value: `₹${stats.walletTotal.toLocaleString("en-IN")}`,
+      sub: "all user balances",
+      href: `${ADMIN_BASE_PATH}/wallet`,
+      color: "primary",
+    },
   ];
 
   const quickLinks = [
@@ -56,7 +70,7 @@ export function AdminDashboard() {
     { href: `${ADMIN_BASE_PATH}/orders`, label: "Manage Orders", desc: "Verify payment & deliver manually" },
     { href: `${ADMIN_BASE_PATH}/tickets`, label: "View Tickets", desc: "Respond to user support requests" },
     { href: `${ADMIN_BASE_PATH}/users`, label: "Manage Users", desc: "View registered client accounts" },
-    { href: `${ADMIN_BASE_PATH}/billing`, label: "Billing Overview", desc: "Invoices and payments" },
+    { href: `${ADMIN_BASE_PATH}/wallet`, label: "User Wallets", desc: "View balances and add/deduct money" },
   ];
 
   return (

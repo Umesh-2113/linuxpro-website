@@ -8,6 +8,6 @@ export const adminNav = [
   { href: `${ADMIN_BASE_PATH}/tickets`, label: "Support Tickets", icon: "chat" },
   { href: `${ADMIN_BASE_PATH}/news`, label: "News", icon: "news" },
   { href: `${ADMIN_BASE_PATH}/users`, label: "Users", icon: "users" },
-  { href: `${ADMIN_BASE_PATH}/billing`, label: "Billing", icon: "card" },
+  { href: `${ADMIN_BASE_PATH}/wallet`, label: "User Wallets", icon: "wallet" },
   { href: `${ADMIN_BASE_PATH}/settings`, label: "Settings", icon: "settings" },
 ];
