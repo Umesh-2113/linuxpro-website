@@ -4,6 +4,7 @@ import { AuthProvider } from "@/components/providers/AuthProvider";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import "./globals.css";
 import "./ui-premium.css";
+import "./home-redesign.css";
 
 const inter = Inter({
   subsets: ["latin"],

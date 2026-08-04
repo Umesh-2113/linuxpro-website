@@ -42,13 +42,14 @@ export async function Plans() {
   const popularIndex = pickPopularIndex(stock);
 
   return (
-    <section className="plans" id="plans">
+    <section className="ol-section ol-plans" id="plans">
       <div className="container">
-        <AnimateOnScroll className="section-header">
-          <span className="section-tag">Live IP Stock</span>
-          <h2 className="section-title">Choose Your Perfect Plan</h2>
-          <p className="section-desc">
-            Top {HOME_PLAN_LIMIT} best-selling IP plans from our inventory — VPS, Linux servers, and proxy IPs ready to deploy.
+        <AnimateOnScroll className="ol-section-head ol-section-head--center">
+          <span className="ol-section-tag">Popular Plans</span>
+          <h2>Choose Your Perfect Plan</h2>
+          <p>
+            Top {HOME_PLAN_LIMIT} best-selling IP plans from live inventory — VPS, Linux servers,
+            and proxy IPs ready to deploy.
           </p>
         </AnimateOnScroll>
 

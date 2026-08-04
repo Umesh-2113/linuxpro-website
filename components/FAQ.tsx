@@ -16,12 +16,12 @@ export function FAQ() {
   };
 
   return (
-    <section className="faq" id="faq">
+    <section className="ol-section ol-faq" id="faq">
       <div className="container">
-        <AnimateOnScroll className="section-header">
-          <span className="section-tag">FAQ</span>
-          <h2 className="section-title">Frequently Asked Questions</h2>
-          <p className="section-desc">Got questions? We&apos;ve got answers.</p>
+        <AnimateOnScroll className="ol-section-head ol-section-head--center">
+          <span className="ol-section-tag">FAQ</span>
+          <h2>Frequently Asked Questions</h2>
+          <p>Got questions? We&apos;ve got answers.</p>
         </AnimateOnScroll>
         <AnimateOnScroll>
           <div className="faq__list" ref={listRef}>

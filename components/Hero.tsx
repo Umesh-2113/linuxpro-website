@@ -1,63 +1,85 @@
 import Link from "next/link";
 import { AnimateOnScroll } from "./AnimateOnScroll";
 import { DashboardMockup } from "./DashboardMockup";
+import { homeHeroPills } from "@/lib/home-data";
+import { siteContact, whatsappChatUrl } from "@/lib/contact";
 
 export function Hero() {
+  const whatsappUrl = whatsappChatUrl(siteContact.phone);
+
   return (
-    <section className="hero" id="hero">
-      <div className="hero__bg">
-        <div className="hero__grid" />
-        <div className="hero__glow hero__glow--1" />
-        <div className="hero__glow hero__glow--2" />
-        <svg className="hero__illustration hero__illustration--left" viewBox="0 0 200 200" aria-hidden="true">
-          <rect x="40" y="30" width="120" height="140" rx="4" fill="none" stroke="#00D084" strokeWidth="1" opacity="0.3" />
-          <rect x="50" y="45" width="100" height="12" rx="2" fill="#00D084" opacity="0.2" />
-          <rect x="50" y="65" width="100" height="12" rx="2" fill="#00D084" opacity="0.15" />
-          <rect x="50" y="85" width="100" height="12" rx="2" fill="#00D084" opacity="0.2" />
-          <circle cx="58" cy="51" r="3" fill="#00D084" opacity="0.6" />
-          <circle cx="58" cy="71" r="3" fill="#00D084" opacity="0.4" />
-          <circle cx="58" cy="91" r="3" fill="#00D084" opacity="0.6" />
-        </svg>
-        <svg className="hero__illustration hero__illustration--right" viewBox="0 0 200 200" aria-hidden="true">
-          <ellipse cx="100" cy="80" rx="60" ry="30" fill="none" stroke="#00D084" strokeWidth="1" opacity="0.25" />
-          <ellipse cx="100" cy="100" rx="80" ry="40" fill="none" stroke="#00D084" strokeWidth="1" opacity="0.15" />
-          <path d="M70 100 Q100 60 130 100" fill="none" stroke="#00D084" strokeWidth="1.5" opacity="0.4" />
-          <circle cx="100" cy="75" r="8" fill="#00D084" opacity="0.3" />
-        </svg>
+    <section className="ol-hero" id="hero">
+      <div className="ol-hero__bg" aria-hidden="true">
+        <div className="ol-hero__grid" />
+        <div className="ol-hero__glow ol-hero__glow--1" />
+        <div className="ol-hero__glow ol-hero__glow--2" />
       </div>
-      <div className="container hero__container">
-        <AnimateOnScroll className="hero__content">
-          <div className="hero__badge">
-            <span className="hero__badge-dot" />
-            99.99% Uptime Guaranteed
+
+      <div className="container ol-hero__container">
+        <AnimateOnScroll className="ol-hero__content">
+          <div className="ol-hero__badges">
+            <span className="ol-hero__badge">
+              <span className="ol-hero__badge-dot" />
+              Most Affordable Linux VPS
+            </span>
+            <span className="ol-hero__badge ol-hero__badge--muted">Premium Quality</span>
           </div>
-          <h1 className="hero__title">Powerful Linux Hosting for Modern Businesses</h1>
-          <p className="hero__subtitle">
-            High-performance VPS, Cloud, and Dedicated Servers with 99.99% uptime.
+
+          <h1 className="ol-hero__title">
+            Most Affordable <span className="ol-gradient-text">Premium Linux</span> VPS Hosting
+          </h1>
+
+          <p className="ol-hero__subtitle">
+            High-performance VPS, Linux servers, and rotating proxy IPs — enterprise-grade
+            infrastructure at prices up to 40% lower than the competition.
           </p>
-          <div className="hero__cta">
-            <Link href="#plans" className="btn btn--primary btn--lg">
-              Get Started
+
+          <ul className="ol-hero__pills">
+            {homeHeroPills.map((pill) => (
+              <li key={pill}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden>
+                  <path d="M20 6L9 17l-5-5" />
+                </svg>
+                {pill}
+              </li>
+            ))}
+          </ul>
+
+          <div className="ol-hero__cta">
+            <Link href="/register" className="btn btn--primary btn--lg">
+              Get Started Free
             </Link>
-            <Link href="#plans" className="btn btn--outline btn--lg">
-              View Plans
-            </Link>
+            {whatsappUrl ? (
+              <a
+                href={whatsappUrl}
+                className="btn btn--outline btn--lg"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Chat for Best Price
+              </a>
+            ) : (
+              <Link href="/contact" className="btn btn--outline btn--lg">
+                Contact Sales
+              </Link>
+            )}
           </div>
-          <div className="hero__trust">
-            <div className="hero__trust-item">
+
+          <div className="ol-hero__trust">
+            <div className="ol-hero__trust-item">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
               </svg>
               DDoS Protected
             </div>
-            <div className="hero__trust-item">
+            <div className="ol-hero__trust-item">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <circle cx="12" cy="12" r="10" />
                 <path d="M12 6v6l4 2" />
               </svg>
-              Instant Deploy
+              Instant Setup
             </div>
-            <div className="hero__trust-item">
+            <div className="ol-hero__trust-item">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
               </svg>
@@ -65,7 +87,8 @@ export function Hero() {
             </div>
           </div>
         </AnimateOnScroll>
-        <AnimateOnScroll delay={200} className="hero__dashboard">
+
+        <AnimateOnScroll delay={200} className="ol-hero__visual">
           <DashboardMockup />
         </AnimateOnScroll>
       </div>

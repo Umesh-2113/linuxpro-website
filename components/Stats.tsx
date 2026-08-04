@@ -60,9 +60,9 @@ function Counter({
 
 export function Stats() {
   return (
-    <section className="stats" id="stats">
+    <section className="ol-section ol-stats-band" id="stats">
       <div className="container">
-        <div className="stats__grid">
+        <div className="ol-stats-band__grid">
           {stats.map((stat, i) => (
             <AnimateOnScroll key={stat.label} delay={i * 100} asChild>
               <div className="stat-item glass">
