@@ -38,7 +38,7 @@ export async function POST(req: Request) {
 
     const body = await req.json();
     const actionType = body.action as ServerActionType;
-    if (actionType !== "start" && actionType !== "stop" && actionType !== "reinstall") {
+    if (actionType !== "start" && actionType !== "restart" && actionType !== "stop" && actionType !== "reinstall") {
       return NextResponse.json({ error: "Invalid action." }, { status: 400 });
     }
 

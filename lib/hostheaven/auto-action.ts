@@ -107,7 +107,7 @@ export async function createAndMaybeAutoExecuteAction(
       await dbUpdateServer(server.id, { providerVmId: result.vmId });
     }
 
-    if (input.action === "start") {
+    if (input.action === "start" || input.action === "restart") {
       await dbUpdateServer(server.id, { powerState: "running" });
     } else if (input.action === "stop") {
       await dbUpdateServer(server.id, { powerState: "stopped" });

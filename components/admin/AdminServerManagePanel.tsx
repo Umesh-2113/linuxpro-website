@@ -18,7 +18,7 @@ import { getServerById, updateUserServer } from "@/lib/user-servers";
 type StatusFilter = "all" | ServerActionStatus;
 
 function powerStateForAction(action: ServerActionRequest["action"]) {
-  if (action === "start") return "running" as const;
+  if (action === "start" || action === "restart") return "running" as const;
   if (action === "stop") return "stopped" as const;
   return null;
 }

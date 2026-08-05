@@ -53,6 +53,15 @@ function StopIcon() {
   );
 }
 
+function RestartIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="20" height="20" aria-hidden>
+      <path d="M21 12a9 9 0 11-3.2-6.8" />
+      <path d="M21 3v6h-6" />
+    </svg>
+  );
+}
+
 function ReinstallIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="20" height="20" aria-hidden>
@@ -75,6 +84,7 @@ function SyncIcon() {
 
 const actionIcons: Record<ServerActionType, React.ReactNode> = {
   start: <StartIcon />,
+  restart: <RestartIcon />,
   stop: <StopIcon />,
   reinstall: <ReinstallIcon />,
 };
@@ -270,6 +280,7 @@ export function ClientServerManagePanel({ serverId }: Props) {
   }
 
   const pendingStart = pendingFor("start");
+  const pendingRestart = pendingFor("restart");
   const pendingStop = pendingFor("stop");
   const pendingReinstall = pendingFor("reinstall");
   const osDisplay = server.os && server.os !== "N/A" ? server.os : "—";
@@ -285,6 +296,7 @@ export function ClientServerManagePanel({ serverId }: Props) {
     pendingLabel?: string;
   }[] = [
     { action: "start", pending: pendingStart },
+    { action: "restart", pending: pendingRestart },
     { action: "stop", pending: pendingStop },
     {
       action: "reinstall",
@@ -399,7 +411,7 @@ export function ClientServerManagePanel({ serverId }: Props) {
             className={`cm-sync${syncBusy ? " is-busy" : ""}`}
             onClick={handleSync}
             disabled={syncBusy || !!busyAction || expired}
-            title="Pull latest IP, username and password from HostHeaven"
+            title="Pull latest IP, username and password from provider API"
           >
             <SyncIcon />
             {syncBusy ? "Syncing…" : "Sync"}

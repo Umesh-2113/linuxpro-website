@@ -75,7 +75,7 @@ async function applyHostHeavenIfNeeded(
     });
     await persistResolvedVmId(result);
 
-    if (current.action === "start") {
+    if (current.action === "start" || current.action === "restart") {
       await dbUpdateServer(server.id, { powerState: "running" });
       return { ok: true as const, autoComplete: true as const, nextStatus: "completed" as const };
     }

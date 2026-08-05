@@ -6,6 +6,7 @@ import {
   hostHeavenFindVmIdByIp,
   hostHeavenListIsos,
   hostHeavenRebuildVm,
+  hostHeavenRebootVm,
   hostHeavenStartVm,
   hostHeavenStopVm,
 } from "@/lib/hostheaven/client";
@@ -64,6 +65,9 @@ export async function executeHostHeavenServerAction(
   switch (action) {
     case "start":
       await hostHeavenStartVm(vmId);
+      return resolved;
+    case "restart":
+      await hostHeavenRebootVm(vmId);
       return resolved;
     case "stop":
       await hostHeavenStopVm(vmId);

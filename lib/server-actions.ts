@@ -1,6 +1,6 @@
 import { apiDelete, apiGet, apiPatch, apiPost } from "@/lib/api-client";
 
-export type ServerActionType = "start" | "stop" | "reinstall";
+export type ServerActionType = "start" | "restart" | "stop" | "reinstall";
 
 export type ReinstallOsOption = "windows" | "ubuntu";
 
@@ -33,12 +33,14 @@ export const reinstallOsLabels: Record<ReinstallOsOption, string> = {
 
 export const serverActionLabels: Record<ServerActionType, string> = {
   start: "Start",
+  restart: "Restart",
   stop: "Stop",
   reinstall: "Reinstall OS",
 };
 
 export const serverActionDescriptions: Record<ServerActionType, string> = {
   start: "Power on your server",
+  restart: "Reboot your server",
   stop: "Shut down your server",
   reinstall: "Fresh OS installation with new credentials",
 };

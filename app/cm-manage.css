@@ -140,7 +140,7 @@
 }
 
 .cm-actions {
-  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
 }
 
 .cm-btn--sync .cm-btn__icon {
@@ -150,6 +150,15 @@
 
 .cm-btn--sync:hover:not(:disabled) {
   border-color: rgba(0, 208, 132, 0.45);
+}
+
+.cm-btn--restart .cm-btn__icon {
+  background: rgba(251, 191, 36, 0.14);
+  color: #fbbf24;
+}
+
+.cm-btn--restart:hover:not(:disabled) {
+  border-color: rgba(251, 191, 36, 0.45);
 }
 
 .cm-btn__icon.is-spinning {

@@ -6,7 +6,12 @@ async function collection() {
 }
 
 function normalizeAction(action: ServerActionRequest): ServerActionRequest {
-  if (action.action !== "start" && action.action !== "stop" && action.action !== "reinstall") {
+  if (
+    action.action !== "start" &&
+    action.action !== "restart" &&
+    action.action !== "stop" &&
+    action.action !== "reinstall"
+  ) {
     return { ...action, action: "reinstall" };
   }
   return action;
