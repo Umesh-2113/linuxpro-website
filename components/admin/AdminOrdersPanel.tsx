@@ -215,11 +215,11 @@ export function AdminOrdersPanel() {
   };
 
   return (
-    <>
-      <header className="admin-topbar">
+    <div className="ao-page">
+      <header className="ao-head">
         <div>
           <h1>Orders</h1>
-          <p>Customer IP stock purchases — verify payment and deliver manually.</p>
+          <p>Verify payment, then deliver IP / username / password manually.</p>
           {loadError ? (
             <p className="form-error" style={{ marginTop: 8 }}>
               {loadError} — Logout karke dubara admin login karein, phir Refresh.
@@ -228,143 +228,151 @@ export function AdminOrdersPanel() {
         </div>
         <button
           type="button"
-          className="btn btn--ghost"
+          className="btn btn--ghost btn--sm"
           onClick={() => void refreshFromApi()}
           disabled={refreshBusy}
         >
-          {refreshBusy ? "Refreshing…" : "Refresh Orders"}
+          {refreshBusy ? "Refreshing…" : "Refresh"}
         </button>
       </header>
 
-      <div className="order-stats">
-        <div className="order-stats__card glass">
-          <strong>{stats.total}</strong>
-          <span>Total Orders</span>
-        </div>
-        <div className="order-stats__card glass order-stats__card--pending">
-          <strong>{stats.paymentPending}</strong>
-          <span>Payment Pending</span>
-        </div>
-        <div className="order-stats__card glass order-stats__card--received">
-          <strong>{stats.paymentReceived}</strong>
-          <span>Payment Confirmed</span>
-        </div>
-        <div className="order-stats__card glass order-stats__card--delivery">
-          <strong>{stats.awaitingDelivery}</strong>
-          <span>Order Pending</span>
-        </div>
-        <div className="order-stats__card glass order-stats__card--delivered">
-          <strong>{stats.delivered}</strong>
-          <span>Delivered</span>
-        </div>
+      <div className="ao-stats">
+        <span>
+          <strong>{stats.total}</strong> total
+        </span>
+        <span>
+          <strong>{stats.paymentPending}</strong> pay pending
+        </span>
+        <span>
+          <strong>{stats.awaitingDelivery}</strong> to deliver
+        </span>
+        <span>
+          <strong>{stats.delivered}</strong> delivered
+        </span>
       </div>
 
-      <div className="admin-order-toolbar">
+      <div className="ao-toolbar">
         <input
           type="search"
-          className="ticket-search"
-          placeholder="Search order ID, IP, customer..."
+          className="ao-search"
+          placeholder="Search order, customer, series…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
-        <div className="admin-ticket-filters">
+        <div className="ao-filters" role="tablist" aria-label="Payment">
           {(["all", "pending", "received", "not_received"] as PaymentFilter[]).map((f) => (
             <button
               key={f}
               type="button"
-              className={`stock-filter-btn${paymentFilter === f ? " active" : ""}`}
+              role="tab"
+              aria-selected={paymentFilter === f}
+              className={`ao-chip${paymentFilter === f ? " is-active" : ""}`}
               onClick={() => setPaymentFilter(f)}
             >
-              {f === "all" ? "All Payments" : paymentStatusLabels[f]}
+              {f === "all" ? "Pay: All" : paymentStatusLabels[f]}
             </button>
           ))}
         </div>
+        <div className="ao-filters" role="tablist" aria-label="Fulfillment">
+          {(["all", "pending", "processing", "delivered", "cancelled"] as FulfillmentFilter[]).map(
+            (f) => (
+              <button
+                key={f}
+                type="button"
+                role="tab"
+                aria-selected={fulfillmentFilter === f}
+                className={`ao-chip${fulfillmentFilter === f ? " is-active" : ""}`}
+                onClick={() => setFulfillmentFilter(f)}
+              >
+                {f === "all"
+                  ? "Status: All"
+                  : f === "pending"
+                    ? "Order Pending"
+                    : fulfillmentStatusLabels[f]}
+              </button>
+            )
+          )}
+        </div>
       </div>
 
-      <div className="admin-ticket-filters" style={{ marginBottom: 20 }}>
-        {(["all", "pending", "processing", "delivered", "cancelled"] as FulfillmentFilter[]).map(
-          (f) => (
-            <button
-              key={f}
-              type="button"
-              className={`stock-filter-btn${fulfillmentFilter === f ? " active" : ""}`}
-              onClick={() => setFulfillmentFilter(f)}
-            >
-              {f === "all" ? "All Status" : f === "pending" ? "Order Pending" : fulfillmentStatusLabels[f]}
-            </button>
-          )
-        )}
-      </div>
-
-      <div className="admin-tickets-layout">
-        <section className="admin-panel glass admin-tickets-list">
-          <h2>Orders ({orders.length})</h2>
+      <div className="ao-layout">
+        <section className="ao-list-panel">
+          <h2>
+            Orders <span>{orders.length}</span>
+          </h2>
           {orders.length === 0 ? (
-            <p className="stock-empty-text">No orders yet.</p>
+            <p className="ao-empty-text">No orders match.</p>
           ) : (
-            <ul className="admin-ticket-items">
+            <ul className="ao-list">
               {orders.map((o) => {
                 const expiryIso = getOrderExpiryIso(o);
                 const expired = isServerExpired(expiryIso);
+                const payOk = o.paymentStatus === "received";
+                const done = o.fulfillmentStatus === "delivered";
                 return (
-                <li key={o.id}>
-                  <button
-                    type="button"
-                    className={`admin-ticket-item${selected?.id === o.id ? " active" : ""}`}
-                    onClick={() => handleSelect(o)}
-                  >
-                    <div className="admin-ticket-item__top">
-                      <strong>{o.id}</strong>
-                      <span className={`status-badge status-badge--${o.paymentStatus === "received" ? "paid" : o.paymentStatus === "not_received" ? "closed" : "pending"}`}>
-                        {getAdminPaymentLabel(o)}
-                      </span>
-                    </div>
-                    <span className="admin-ticket-item__subject">
-                      IP {getOrderTitle(o)} × {o.quantity}
-                    </span>
-                    <span className="admin-ticket-item__meta">
-                      {o.userName} · ₹{o.totalAmount.toLocaleString("en-IN")}
-                    </span>
-                    <span className="admin-ticket-item__meta admin-ticket-item__meta--dates">
-                      Ordered {formatOrderDate(o.createdAt)}
-                      {" · "}
-                      Exp {formatServerExpiry(expiryIso)}
-                      {expired ? " · Expired" : ""}
-                    </span>
-                    <span className={`status-badge status-badge--${o.fulfillmentStatus === "delivered" ? "paid" : o.fulfillmentStatus === "cancelled" ? "closed" : "open"}`}>
-                      {getAdminFulfillmentLabel(o)}
-                    </span>
-                  </button>
-                </li>
+                  <li key={o.id}>
+                    <button
+                      type="button"
+                      className={`ao-row${selected?.id === o.id ? " is-active" : ""}${
+                        payOk && !done ? " is-action" : ""
+                      }`}
+                      onClick={() => handleSelect(o)}
+                    >
+                      <div className="ao-row__top">
+                        <code>{o.id}</code>
+                        <strong>₹{o.totalAmount.toLocaleString("en-IN")}</strong>
+                      </div>
+                      <p className="ao-row__title">
+                        {getOrderTitle(o)} × {o.quantity}
+                      </p>
+                      <p className="ao-row__meta">
+                        {o.userName} · {formatOrderDate(o.createdAt)}
+                        {expired ? " · Expired" : ""}
+                      </p>
+                      <div className="ao-row__badges">
+                        <span className={`ao-tag${payOk ? " is-ok" : " is-warn"}`}>
+                          {getAdminPaymentLabel(o)}
+                        </span>
+                        <span className={`ao-tag${done ? " is-ok" : " is-mute"}`}>
+                          {getAdminFulfillmentLabel(o)}
+                        </span>
+                      </div>
+                    </button>
+                  </li>
                 );
               })}
             </ul>
           )}
         </section>
 
-        <section className="admin-panel glass admin-ticket-detail">
+        <section className="ao-detail">
           {selected ? (
             <>
-              <div className="admin-ticket-detail__header">
+              <div className="ao-detail__head">
                 <div>
-                  <div className="ticket-detail__badges">
-                    <span className={`status-badge status-badge--${selected.paymentStatus === "received" ? "paid" : selected.paymentStatus === "not_received" ? "closed" : "pending"}`}>
+                  <div className="ao-row__badges" style={{ marginBottom: 8 }}>
+                    <span
+                      className={`ao-tag${
+                        selected.paymentStatus === "received" ? " is-ok" : " is-warn"
+                      }`}
+                    >
                       {getAdminPaymentLabel(selected)}
                     </span>
-                    <span className={`status-badge status-badge--${selected.fulfillmentStatus === "delivered" ? "paid" : selected.fulfillmentStatus === "cancelled" ? "closed" : "open"}`}>
+                    <span
+                      className={`ao-tag${
+                        selected.fulfillmentStatus === "delivered" ? " is-ok" : " is-mute"
+                      }`}
+                    >
                       {getAdminFulfillmentLabel(selected)}
                     </span>
                   </div>
-                  {isCashfreePaymentConfirmed(selected) && (
-                    <div className="admin-order-alert admin-order-alert--cashfree">
-                      <strong>Payment Confirmed via Cashfree</strong>
-                      <span>Order Pending — deliver IP, username &amp; password to customer.</span>
-                    </div>
-                  )}
-                  <h2 className="order-card__series">IP {getOrderTitle(selected)}</h2>
-                  <p className="order-card__subtitle">{getOrderSubtitle(selected)}</p>
-                  <p className="admin-order-id-line">
-                    {selected.id} · {selected.userName} ({selected.userEmail})
+                  <h2>{getOrderTitle(selected)}</h2>
+                  <p>
+                    {getOrderSubtitle(selected)} · Qty {selected.quantity} · ₹
+                    {selected.totalAmount.toLocaleString("en-IN")}
+                  </p>
+                  <p className="ao-detail__id">
+                    <code>{selected.id}</code>
                   </p>
                 </div>
                 <button
@@ -376,97 +384,113 @@ export function AdminOrdersPanel() {
                 </button>
               </div>
 
-              <div className="order-detail-grid">
-                <div className="order-detail-box">
-                  <h3>Order Details</h3>
-                  <ul>
-                    <li><span>Order Date</span><strong>{formatOrderDate(selected.createdAt)}</strong></li>
-                    <li>
-                      <span>Expiry Date</span>
-                      <strong className={selectedExpired ? "admin-order-expiry--expired" : undefined}>
-                        {selectedExpiry ? formatServerExpiry(selectedExpiry) : "—"}
-                        {selectedExpired ? " (Expired)" : ""}
-                      </strong>
-                    </li>
-                    <li><span>Type</span><strong>{stockTypeLabels[selected.stockType]}</strong></li>
-                    <li><span>IP Series</span><strong>{selected.series}</strong></li>
-                    <li><span>Quantity</span><strong>{selected.quantity} pcs</strong></li>
-                    <li><span>Unit Price</span><strong>₹{selected.unitPrice.toLocaleString("en-IN")}</strong></li>
-                    <li><span>Total</span><strong>₹{selected.totalAmount.toLocaleString("en-IN")}</strong></li>
-                    <li><span>Region</span><strong>{selected.region}</strong></li>
-                    <li><span>Specs</span><strong>{selected.specs}</strong></li>
-                    {selected.port && (
-                      <li><span>Port</span><strong>{selected.port}</strong></li>
-                    )}
-                    {selected.os && selected.os !== "N/A" && (
-                      <li><span>OS</span><strong>{selected.os}</strong></li>
-                    )}
-                    <li>
-                      <span>Payment via</span>
-                      <strong>{selected.paymentGateway === "cashfree" ? "Cashfree" : "Manual"}</strong>
-                    </li>
-                    {selected.cashfreeOrderStatus && (
-                      <li>
-                        <span>Cashfree Status</span>
-                        <strong>{selected.cashfreeOrderStatus}</strong>
-                      </li>
-                    )}
-                  </ul>
+              {isCashfreePaymentConfirmed(selected) && (
+                <div className="ao-banner">
+                  Cashfree payment confirmed — deliver IP credentials below.
                 </div>
+              )}
 
-                <div className="order-detail-box">
-                  <h3>Customer</h3>
-                  <ul>
-                    <li><span>Name</span><strong>{selected.userName}</strong></li>
-                    <li><span>Email</span><strong>{selected.userEmail}</strong></li>
-                  </ul>
+              <dl className="ao-facts">
+                <div>
+                  <dt>Customer</dt>
+                  <dd>
+                    {selected.userName}
+                    <br />
+                    <a href={`mailto:${selected.userEmail}`}>{selected.userEmail}</a>
+                  </dd>
                 </div>
-              </div>
+                <div>
+                  <dt>Ordered</dt>
+                  <dd>{formatOrderDate(selected.createdAt)}</dd>
+                </div>
+                <div>
+                  <dt>Expires</dt>
+                  <dd className={selectedExpired ? "is-expired" : undefined}>
+                    {selectedExpiry ? formatServerExpiry(selectedExpiry) : "—"}
+                    {selectedExpired ? " (Expired)" : ""}
+                  </dd>
+                </div>
+                <div>
+                  <dt>Type</dt>
+                  <dd>{stockTypeLabels[selected.stockType]}</dd>
+                </div>
+                <div>
+                  <dt>Series</dt>
+                  <dd>{selected.series}</dd>
+                </div>
+                <div>
+                  <dt>Region</dt>
+                  <dd>{selected.region}</dd>
+                </div>
+                <div>
+                  <dt>Specs</dt>
+                  <dd>{selected.specs || "—"}</dd>
+                </div>
+                <div>
+                  <dt>Pay via</dt>
+                  <dd>
+                    {selected.paymentGateway === "cashfree"
+                      ? "Cashfree"
+                      : selected.paymentGateway === "wallet"
+                        ? "Wallet"
+                        : "Manual"}
+                    {selected.cashfreeOrderStatus
+                      ? ` · ${selected.cashfreeOrderStatus}`
+                      : ""}
+                  </dd>
+                </div>
+              </dl>
 
-              <div className="order-admin-actions">
+              <div className="ao-block">
                 <h3>Payment</h3>
-                {selected.paymentGateway === "cashfree" && selected.paymentStatus === "received" ? (
-                  <div className="order-delivered-creds glass">
-                    <p className="order-delivered-creds__title">
-                      ✓ Payment Confirmed — Cashfree (auto)
-                    </p>
-                    <p style={{ fontSize: "0.85rem", color: "var(--text-muted)" }}>
-                      Status: {selected.cashfreeOrderStatus || "PAID"} · No manual payment action needed.
-                    </p>
-                  </div>
+                {selected.paymentGateway === "cashfree" &&
+                selected.paymentStatus === "received" ? (
+                  <p className="ao-note">Auto-confirmed via Cashfree — no manual action.</p>
                 ) : (
-                  <div className="order-admin-actions__btns">
+                  <div className="ao-btns">
                     <button
                       type="button"
-                      className={`btn btn--sm${selected.paymentStatus === "received" ? " btn--primary" : " btn--outline"}`}
+                      className={`btn btn--sm${
+                        selected.paymentStatus === "received" ? " btn--primary" : " btn--outline"
+                      }`}
                       onClick={() => patch({ paymentStatus: "received" })}
                     >
-                      ✓ Payment Confirmed
+                      Payment Confirmed
                     </button>
                     <button
                       type="button"
-                      className={`btn btn--sm${selected.paymentStatus === "not_received" ? " btn--primary" : " btn--outline"}`}
+                      className={`btn btn--sm${
+                        selected.paymentStatus === "not_received"
+                          ? " btn--primary"
+                          : " btn--outline"
+                      }`}
                       onClick={() => patch({ paymentStatus: "not_received" })}
                     >
-                      ✕ Payment Not Received
+                      Not Received
                     </button>
                     <button
                       type="button"
-                      className={`btn btn--sm${selected.paymentStatus === "pending" ? " btn--primary" : " btn--outline"}`}
+                      className={`btn btn--sm${
+                        selected.paymentStatus === "pending" ? " btn--primary" : " btn--outline"
+                      }`}
                       onClick={() => patch({ paymentStatus: "pending" })}
                     >
-                      Reset to Pending
+                      Reset Pending
                     </button>
                   </div>
                 )}
               </div>
 
-              <div className="order-admin-actions">
-                <h3>Fulfillment — give IP & login to customer</h3>
-                <div className="order-admin-actions__btns" style={{ marginBottom: 16 }}>
+              <div className="ao-block">
+                <h3>Deliver credentials</h3>
+                <div className="ao-btns" style={{ marginBottom: 12 }}>
                   <button
                     type="button"
-                    className={`btn btn--sm${selected.fulfillmentStatus === "processing" ? " btn--primary" : " btn--outline"}`}
+                    className={`btn btn--sm${
+                      selected.fulfillmentStatus === "processing"
+                        ? " btn--primary"
+                        : " btn--outline"
+                    }`}
                     onClick={() => patch({ fulfillmentStatus: "processing" })}
                     disabled={selected.fulfillmentStatus === "delivered"}
                   >
@@ -481,20 +505,16 @@ export function AdminOrdersPanel() {
                     Cancel Order
                   </button>
                 </div>
-                <p className="admin-panel__note" style={{ marginBottom: 12 }}>
-                  API auto-deliver is OFF. Enter IP, username and password below, then deliver manually.
+                <p className="ao-note">
+                  API auto-deliver is OFF. Enter IP, username and password, then deliver.
                 </p>
-                {saveSuccess ? (
-                  <p className="admin-panel__note" style={{ marginBottom: 12 }}>
-                    {saveSuccess}
-                  </p>
-                ) : null}
+                {saveSuccess ? <p className="ao-note ao-note--ok">{saveSuccess}</p> : null}
 
                 {selected.fulfillmentStatus === "delivered" ? (
                   <div className="order-deliver-form">
                     <p className="order-delivered-creds__title">
-                      ✓ Delivered — {deliverUnits.length} unit
-                      {deliverUnits.length > 1 ? "s" : ""} (edit if wrong)
+                      Delivered — {deliverUnits.length} unit
+                      {deliverUnits.length > 1 ? "s" : ""} (edit if needed)
                     </p>
                     {deliverUnits.map((unit, idx) => (
                       <div key={unit.serverId || idx} className="order-deliver-unit">
@@ -546,12 +566,7 @@ export function AdminOrdersPanel() {
                         </div>
                       </div>
                     ))}
-                    {deliverError && (
-                      <div className="auth-form__error">{deliverError}</div>
-                    )}
-                    {saveSuccess && (
-                      <div className="ticket-toast ticket-toast--success">{saveSuccess}</div>
-                    )}
+                    {deliverError ? <div className="auth-form__error">{deliverError}</div> : null}
                     <button
                       type="button"
                       className="btn btn--primary"
@@ -594,9 +609,8 @@ export function AdminOrdersPanel() {
                         Mark payment as received before delivering credentials.
                       </p>
                     )}
-                    <p className="admin-panel__note" style={{ marginBottom: 12 }}>
-                      Quantity <strong>{selected.quantity}</strong> — har unit ke liye alag
-                      IP / username / password bharein.
+                    <p className="ao-note">
+                      Quantity <strong>{selected.quantity}</strong> — fill each unit.
                     </p>
                     {deliverUnits.map((unit, idx) => (
                       <div key={idx} className="order-deliver-unit">
@@ -632,7 +646,7 @@ export function AdminOrdersPanel() {
                                   : selected.stockType === "proxy"
                                     ? "user"
                                     : defaultDeliverUsername(selected) ||
-                                      "Administrator / VPS user (not root)"
+                                      "Administrator / VPS user"
                               }
                               disabled={selected.paymentStatus !== "received"}
                             />
@@ -655,9 +669,7 @@ export function AdminOrdersPanel() {
                         </div>
                       </div>
                     ))}
-                    {deliverError && (
-                      <div className="auth-form__error">{deliverError}</div>
-                    )}
+                    {deliverError ? <div className="auth-form__error">{deliverError}</div> : null}
                     <button
                       type="button"
                       className="btn btn--primary"
@@ -697,14 +709,14 @@ export function AdminOrdersPanel() {
                 )}
               </div>
 
-              <div className="auth-form__field">
+              <div className="ao-block">
                 <label htmlFor="admin-order-note">Admin note (internal)</label>
                 <textarea
                   id="admin-order-note"
                   rows={3}
                   value={adminNote}
                   onChange={(e) => setAdminNote(e.target.value)}
-                  placeholder="e.g. Sent credentials via email, UPI ref: 12345..."
+                  placeholder="Internal note…"
                 />
                 <button
                   type="button"
@@ -717,13 +729,12 @@ export function AdminOrdersPanel() {
               </div>
             </>
           ) : (
-            <div className="admin-ticket-empty">
-              <div className="ticket-detail__empty-icon">📦</div>
-              <p>Select an order to verify payment and deliver manually.</p>
+            <div className="ao-detail-empty">
+              <p>Select an order to verify payment and deliver credentials.</p>
             </div>
           )}
         </section>
       </div>
-    </>
+    </div>
   );
 }
