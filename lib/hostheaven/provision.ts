@@ -191,7 +191,13 @@ async function tryDeliverFromHostHeaven(
   }
 
   if (units.length < order.quantity) {
-    return { units: [] };
+    return {
+      units: [],
+      error:
+        available.length >= order.quantity
+          ? `HostHeaven pe ${available.length} free IP mile, lekin credentials load fail (${units.length}/${order.quantity}).`
+          : undefined,
+    };
   }
   return { units };
 }

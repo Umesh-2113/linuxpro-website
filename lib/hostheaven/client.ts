@@ -256,6 +256,10 @@ function collectIpv4Strings(value: unknown, ips: string[], depth: number): void 
 
 function extractVmIps(entry: Record<string, unknown>): string[] {
   const ips: string[] = [];
+  // Prefer explicit IP fields first (HostHeaven overview uses ipAddress)
+  for (const key of ["ipAddress", "ip", "ipv4", "primaryIp", "publicIp"]) {
+    pushIp(entry[key], ips);
+  }
   collectIpv4Strings(entry, ips, 0);
   return [...new Set(ips)];
 }
@@ -288,12 +292,14 @@ function normalizeVm(entry: unknown): HostHeavenVm | null {
 function normalizeUserOrderVm(order: UserOrderOverview): HostHeavenVm | null {
   if (!order.vmId || order.vmId <= 0) return null;
   const raw: Record<string, unknown> = { ...order };
-  const ips = order.ipAddress ? [normalizeIp(order.ipAddress)] : [];
+  const fromField = order.ipAddress ? normalizeIp(order.ipAddress) : "";
+  const ips = fromField && isIpv4(fromField) ? [fromField] : extractVmIps(raw);
   return {
     id: Math.round(order.vmId),
     ips,
     status: order.dbStatus,
-    assigned: Boolean(order.assigned) || Boolean(order.assignedToEmail),
+    // Only trust explicit assigned flag — assignedToEmail is often stale metadata
+    assigned: Boolean(order.assigned),
     locked: Boolean(order.locked),
     os: order.os || order.osType,
     monthlyPrice:
@@ -469,25 +475,13 @@ export async function hostHeavenGetVmCredentials(
     username = "Administrator";
   }
   if (!username) {
-    // Linux HostHeaven VMs use root; blank OS stays empty for admin to fill
-    const looksLinux =
-      osHint.includes("ubuntu") ||
-      osHint.includes("centos") ||
-      osHint.includes("debian") ||
-      osHint.includes("linux") ||
-      osHint.includes("almalinux") ||
-      osHint.includes("rocky");
-    username = looksLinux ? "root" : "";
+    // HostHeaven Linux defaults to root; Windows already handled above
+    username = "root";
   }
 
   if (!ip || !password) {
     throw new Error(
       `Could not load credentials for HostHeaven VM ${vmId}. IP or password missing.`
-    );
-  }
-  if (!username) {
-    throw new Error(
-      `Could not load username for HostHeaven VM ${vmId}. Fill username manually (Windows = Administrator).`
     );
   }
 
