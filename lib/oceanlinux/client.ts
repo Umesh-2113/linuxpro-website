@@ -16,6 +16,9 @@ export type OceanLinuxProduct = {
   serverType?: string;
   available: boolean;
   memories: OceanLinuxProductMemory[];
+  /** Raw memoryOptions from API (may include nested stock). */
+  memoryOptions?: Record<string, unknown>;
+  raw?: Record<string, unknown>;
 };
 
 export type OceanLinuxOrder = {
@@ -130,6 +133,11 @@ function normalizeProduct(raw: Record<string, unknown>): OceanLinuxProduct | nul
     serverType: typeof raw.serverType === "string" ? raw.serverType : undefined,
     available: raw.available !== false,
     memories,
+    memoryOptions:
+      raw.memoryOptions && typeof raw.memoryOptions === "object"
+        ? (raw.memoryOptions as Record<string, unknown>)
+        : undefined,
+    raw,
   };
 }
 
