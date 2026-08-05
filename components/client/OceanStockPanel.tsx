@@ -24,10 +24,10 @@ type Props = {
   category: OceanStockCategory;
 };
 
-function cardTitle(item: StockItem): string {
-  if (item.type === "proxy") return `Proxy IP — ${getProductSeriesName(item.series)}`;
-  const os = item.os && item.os !== "N/A" ? item.os : stockTypeLabels[item.type];
-  return `${os} — ${getProductSeriesName(item.series)}`;
+function planTitle(item: StockItem): string {
+  if (item.type === "proxy") return "Premium Proxy";
+  if (item.os && item.os !== "N/A") return item.os;
+  return stockTypeLabels[item.type];
 }
 
 function hasPromo(item: StockItem): boolean {
@@ -75,6 +75,7 @@ export function OceanStockPanel({ category }: Props) {
       list = list.filter(
         (i) =>
           i.series.toLowerCase().includes(q) ||
+          getProductSeriesName(i.series).toLowerCase().includes(q) ||
           i.region.toLowerCase().includes(q) ||
           i.os.toLowerCase().includes(q) ||
           stockTypeLabels[i.type].toLowerCase().includes(q)
@@ -92,7 +93,7 @@ export function OceanStockPanel({ category }: Props) {
   return (
     <div className="ocean-stock">
       <div className="ocean-stock__head">
-        <div>
+        <div className="ocean-stock__intro">
           <p className="ocean-stock__eyebrow">{meta.title}</p>
           <h1 className="ocean-stock__title">{meta.heading}</h1>
           <p className="ocean-stock__desc">{meta.description}</p>
@@ -105,7 +106,7 @@ export function OceanStockPanel({ category }: Props) {
           <input
             type="search"
             className="ocean-stock__search"
-            placeholder="Search servers..."
+            placeholder="Search OS, region, IP series..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -120,7 +121,7 @@ export function OceanStockPanel({ category }: Props) {
       )}
 
       {displayed.length === 0 ? (
-        <div className="ocean-stock__empty glass">
+        <div className="ocean-stock__empty">
           <h3>No plans found</h3>
           <p>
             {search
@@ -135,21 +136,27 @@ export function OceanStockPanel({ category }: Props) {
         </div>
       ) : (
         <div className="ocean-stock__grid">
-          {displayed.map((item) => {
+          {displayed.map((item, index) => {
             const status = getStockStatus(item.quantity);
             const outOfStock = status === "out-of-stock";
             const plan = primaryPlan(item);
             const inCart = isInCart(item.id);
-            // cartVersion keeps cart button state fresh
+            const seriesLabel = getProductSeriesName(item.series);
             void cartVersion;
 
             return (
               <article
                 key={item.id}
-                className={`ocean-plan-card glass ocean-plan-card--${item.type}${outOfStock ? " ocean-plan-card--sold-out" : ""}`}
+                className={`ocean-plan-card ocean-plan-card--${item.type}${outOfStock ? " ocean-plan-card--sold-out" : ""}`}
+                style={{ animationDelay: `${Math.min(index, 8) * 45}ms` }}
               >
-                <div className="ocean-plan-card__top">
-                  <h3>{cardTitle(item)}</h3>
+                <div className="ocean-plan-card__rail" aria-hidden />
+                <div className="ocean-plan-card__mesh" aria-hidden />
+
+                <div className="ocean-plan-card__meta">
+                  <span className={`ocean-plan-card__type ocean-plan-card__type--${item.type}`}>
+                    {stockTypeLabels[item.type]}
+                  </span>
                   <div className="ocean-plan-card__badges">
                     {hasPromo(item) && !outOfStock && (
                       <span className="ocean-badge ocean-badge--promo">Promo</span>
@@ -160,49 +167,50 @@ export function OceanStockPanel({ category }: Props) {
                   </div>
                 </div>
 
+                <h3 className="ocean-plan-card__title">{planTitle(item)}</h3>
+                <p className="ocean-plan-card__series">{seriesLabel}</p>
+
                 {item.type === "proxy" ? (
-                  <ul className="ocean-plan-card__specs">
-                    <li>
-                      <span>Port</span>
-                      <strong>{item.port || "—"}</strong>
-                    </li>
-                    <li>
-                      <span>Region</span>
-                      <strong>{item.region}</strong>
-                    </li>
-                    <li>
-                      <span>Series</span>
-                      <strong>{getProductSeriesName(item.series)}</strong>
-                    </li>
-                  </ul>
+                  <dl className="ocean-plan-card__specs">
+                    <div>
+                      <dt>Port</dt>
+                      <dd>{item.port || "—"}</dd>
+                    </div>
+                    <div>
+                      <dt>Region</dt>
+                      <dd>{item.region}</dd>
+                    </div>
+                    <div>
+                      <dt>Stock</dt>
+                      <dd>{item.quantity}</dd>
+                    </div>
+                  </dl>
                 ) : (
-                  <ul className="ocean-plan-card__specs">
-                    <li>
-                      <span className="ocean-spec-icon" aria-hidden>
-                        🧠
-                      </span>
-                      <strong>{plan.ram}GB RAM</strong>
-                    </li>
-                    <li>
-                      <span className="ocean-spec-icon" aria-hidden>
-                        ⚡
-                      </span>
-                      <strong>{plan.vcpu}vCPU</strong>
-                    </li>
-                    <li>
-                      <span className="ocean-spec-icon" aria-hidden>
-                        💾
-                      </span>
-                      <strong>{item.storage}GB SSD</strong>
-                    </li>
-                  </ul>
+                  <dl className="ocean-plan-card__specs">
+                    <div>
+                      <dt>RAM</dt>
+                      <dd>{plan.ram} GB</dd>
+                    </div>
+                    <div>
+                      <dt>vCPU</dt>
+                      <dd>{plan.vcpu} cores</dd>
+                    </div>
+                    <div>
+                      <dt>SSD</dt>
+                      <dd>{item.storage} GB</dd>
+                    </div>
+                  </dl>
                 )}
 
-                <div className="ocean-plan-card__price">{formatStockPrice(item)}</div>
-                <div className="ocean-plan-card__ip">
-                  IP <strong>{getProductSeriesName(item.series)}</strong>
-                  {item.quantity > 0 && (
-                    <span className="ocean-plan-card__qty">{item.quantity} in stock</span>
+                <div className="ocean-plan-card__bottom">
+                  <div className="ocean-plan-card__price-block">
+                    <span className="ocean-plan-card__price">{formatStockPrice(item)}</span>
+                    <span className="ocean-plan-card__price-note">per unit</span>
+                  </div>
+                  {item.quantity > 0 ? (
+                    <span className="ocean-plan-card__qty">{item.quantity} ready</span>
+                  ) : (
+                    <span className="ocean-plan-card__qty ocean-plan-card__qty--out">Sold out</span>
                   )}
                 </div>
 
