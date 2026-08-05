@@ -289,6 +289,16 @@ function normalizeVm(entry: unknown): HostHeavenVm | null {
   return { id, ips: extractVmIps(raw), raw };
 }
 
+function toBool(value: unknown): boolean {
+  if (typeof value === "boolean") return value;
+  if (typeof value === "number") return value === 1;
+  if (typeof value === "string") {
+    const v = value.trim().toLowerCase();
+    return v === "true" || v === "1" || v === "yes" || v === "y";
+  }
+  return false;
+}
+
 function normalizeUserOrderVm(order: UserOrderOverview): HostHeavenVm | null {
   if (!order.vmId || order.vmId <= 0) return null;
   const raw: Record<string, unknown> = { ...order };
@@ -299,8 +309,8 @@ function normalizeUserOrderVm(order: UserOrderOverview): HostHeavenVm | null {
     ips,
     status: order.dbStatus,
     // Only trust explicit assigned flag — assignedToEmail is often stale metadata
-    assigned: Boolean(order.assigned),
-    locked: Boolean(order.locked),
+    assigned: toBool(order.assigned),
+    locked: toBool(order.locked),
     os: order.os || order.osType,
     monthlyPrice:
       typeof order.monthlyPrice === "number" && order.monthlyPrice > 0
