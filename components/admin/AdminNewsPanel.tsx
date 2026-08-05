@@ -167,7 +167,9 @@ export function AdminNewsPanel() {
       <header className="admin-topbar">
         <div>
           <h1>News &amp; Announcements</h1>
-          <p>Publish updates that pop up for customers after they log in.</p>
+          <p>
+            Big, clear updates for customers — published news pops up after login.
+          </p>
         </div>
       </header>
 
@@ -274,8 +276,8 @@ export function AdminNewsPanel() {
               <textarea
                 id="news-body"
                 value={body}
-                rows={4}
-                maxLength={600}
+                rows={7}
+                maxLength={1200}
                 onChange={(e) => setBody(e.target.value)}
                 placeholder="Write the announcement customers will see…"
               />
