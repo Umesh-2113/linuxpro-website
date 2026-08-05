@@ -91,6 +91,6 @@ export async function syncServerFromHostHeaven(
 
   return {
     server: updated,
-    message: `Synced from HostHeaven — IP ${creds.ip}, user ${creds.username}.`,
+    message: "Synced from HostHeaven — credentials updated.",
   };
 }
