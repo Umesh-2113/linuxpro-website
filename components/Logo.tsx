@@ -10,51 +10,42 @@ type Props = {
 
 export function Logo({ className, tag }: Props) {
   const uid = useId().replace(/:/g, "");
-  const grad = `lpMark-${uid}`;
-  const ring = `lpRing-${uid}`;
+  const glow = `lpGlow-${uid}`;
 
   return (
     <Link href="/" className={`nav__logo ${className ?? ""}`}>
       <span className="nav__logo-mark" aria-hidden="true">
-        <svg className="nav__logo-icon" viewBox="0 0 48 48" fill="none">
+        <svg className="nav__logo-icon" viewBox="0 0 40 40" fill="none">
           <defs>
-            <linearGradient id={grad} x1="12" y1="8" x2="40" y2="40" gradientUnits="userSpaceOnUse">
-              <stop stopColor="#5CFFC0" />
-              <stop offset="0.55" stopColor="#00D084" />
+            <linearGradient id={glow} x1="6" y1="4" x2="34" y2="36" gradientUnits="userSpaceOnUse">
+              <stop stopColor="#3DFFB0" />
               <stop offset="1" stopColor="#00A86B" />
             </linearGradient>
-            <linearGradient id={ring} x1="4" y1="4" x2="44" y2="44" gradientUnits="userSpaceOnUse">
-              <stop stopColor="#9AFFD8" stopOpacity="0.85" />
-              <stop offset="1" stopColor="#00D084" stopOpacity="0.2" />
-            </linearGradient>
           </defs>
-
-          <rect x="2" y="2" width="44" height="44" rx="14" fill="#070D16" />
+          {/* Plate */}
+          <rect x="1" y="1" width="38" height="38" rx="10" fill="#061018" />
           <rect
-            x="2.75"
-            y="2.75"
-            width="42.5"
-            height="42.5"
-            rx="13.25"
-            stroke={`url(#${ring})`}
-            strokeWidth="1.5"
-            fill="none"
+            x="1.5"
+            y="1.5"
+            width="37"
+            height="37"
+            rx="9.5"
+            stroke={`url(#${glow})`}
+            strokeOpacity="0.55"
+            strokeWidth="1"
           />
-
-          {/* L */}
+          {/* Accent bar */}
+          <rect x="1" y="1" width="4" height="38" rx="2" fill={`url(#${glow})`} />
+          {/* Bold L */}
           <path
-            d="M12 12.5h5.4v18.2H28.5V36H12V12.5Z"
-            fill="#F7FFFB"
+            d="M11 9.5h4.2v16.2H24.5V30H11V9.5Z"
+            fill="#F4FFF9"
           />
-
-          {/* P */}
+          {/* Compact P block */}
           <path
-            d="M23.2 12.5H32.2C37.1 12.5 40.5 15.7 40.5 20.5C40.5 25.3 37.1 28.5 32.2 28.5H28.6V36H23.2V12.5ZM28.6 17.1V23.9H32C34.1 23.9 35.3 22.5 35.3 20.5C35.3 18.5 34.1 17.1 32 17.1H28.6Z"
-            fill={`url(#${grad})`}
+            d="M20.2 9.5H26.8c3.55 0 5.9 2.15 5.9 5.35 0 3.2-2.35 5.35-5.9 5.35H24.4V30h-4.2V9.5Zm4.2 3.35v4h2.35c1.35 0 2.15-.85 2.15-2s-.8-2-2.15-2H24.4Z"
+            fill={`url(#${glow})`}
           />
-
-          {/* Signal dot */}
-          <circle cx="38.2" cy="35.2" r="2.4" fill={`url(#${grad})`} />
         </svg>
       </span>
 
