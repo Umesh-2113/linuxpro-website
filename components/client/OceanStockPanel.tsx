@@ -92,13 +92,14 @@ export function OceanStockPanel({ category }: Props) {
 
   return (
     <div className="ocean-stock">
-      <div className="ocean-stock__head">
-        <div className="ocean-stock__intro">
-          <p className="ocean-stock__eyebrow">{meta.title}</p>
+      <header className="ocean-stock__head">
+        <div>
+          <p className="ocean-stock__eyebrow">LinuxPro · {meta.title}</p>
           <h1 className="ocean-stock__title">{meta.heading}</h1>
           <p className="ocean-stock__desc">{meta.description}</p>
         </div>
-        <div className="ocean-stock__search-wrap">
+        <label className="ocean-stock__search-wrap">
+          <span className="sr-only">Search plans</span>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
             <circle cx="11" cy="11" r="8" />
             <path d="M21 21l-4.35-4.35" />
@@ -106,12 +107,12 @@ export function OceanStockPanel({ category }: Props) {
           <input
             type="search"
             className="ocean-stock__search"
-            placeholder="Search OS, region, IP series..."
+            placeholder="Search plans..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
-        </div>
-      </div>
+        </label>
+      </header>
 
       {orderSuccess && (
         <div className="ocean-toast ocean-toast--success">
@@ -135,8 +136,15 @@ export function OceanStockPanel({ category }: Props) {
           )}
         </div>
       ) : (
-        <div className="ocean-stock__grid">
-          {displayed.map((item, index) => {
+        <div className="ocean-plan-list">
+          <div className="ocean-plan-list__legend" aria-hidden>
+            <span>Plan</span>
+            <span>Specs</span>
+            <span>Price</span>
+            <span />
+          </div>
+
+          {displayed.map((item) => {
             const status = getStockStatus(item.quantity);
             const outOfStock = status === "out-of-stock";
             const plan = primaryPlan(item);
@@ -147,17 +155,13 @@ export function OceanStockPanel({ category }: Props) {
             return (
               <article
                 key={item.id}
-                className={`ocean-plan-card ocean-plan-card--${item.type}${outOfStock ? " ocean-plan-card--sold-out" : ""}`}
-                style={{ animationDelay: `${Math.min(index, 8) * 45}ms` }}
+                className={`ocean-plan-row ocean-plan-row--${item.type}${outOfStock ? " ocean-plan-row--sold-out" : ""}`}
               >
-                <div className="ocean-plan-card__rail" aria-hidden />
-                <div className="ocean-plan-card__mesh" aria-hidden />
-
-                <div className="ocean-plan-card__meta">
-                  <span className={`ocean-plan-card__type ocean-plan-card__type--${item.type}`}>
-                    {stockTypeLabels[item.type]}
-                  </span>
-                  <div className="ocean-plan-card__badges">
+                <div className="ocean-plan-row__main">
+                  <div className="ocean-plan-row__tags">
+                    <span className={`ocean-plan-row__type ocean-plan-row__type--${item.type}`}>
+                      {stockTypeLabels[item.type]}
+                    </span>
                     {hasPromo(item) && !outOfStock && (
                       <span className="ocean-badge ocean-badge--promo">Promo</span>
                     )}
@@ -165,77 +169,66 @@ export function OceanStockPanel({ category }: Props) {
                       {getStockStatusLabel(status)}
                     </span>
                   </div>
+                  <h3 className="ocean-plan-row__title">{planTitle(item)}</h3>
+                  <p className="ocean-plan-row__series">
+                    {seriesLabel}
+                    {item.region ? ` · ${item.region}` : ""}
+                    {item.quantity > 0 ? ` · ${item.quantity} ready` : ""}
+                  </p>
                 </div>
 
-                <h3 className="ocean-plan-card__title">{planTitle(item)}</h3>
-                <p className="ocean-plan-card__series">{seriesLabel}</p>
-
-                {item.type === "proxy" ? (
-                  <dl className="ocean-plan-card__specs">
-                    <div>
-                      <dt>Port</dt>
-                      <dd>{item.port || "—"}</dd>
-                    </div>
-                    <div>
-                      <dt>Region</dt>
-                      <dd>{item.region}</dd>
-                    </div>
-                    <div>
-                      <dt>Stock</dt>
-                      <dd>{item.quantity}</dd>
-                    </div>
-                  </dl>
-                ) : (
-                  <dl className="ocean-plan-card__specs">
-                    <div>
-                      <dt>RAM</dt>
-                      <dd>{plan.ram} GB</dd>
-                    </div>
-                    <div>
-                      <dt>vCPU</dt>
-                      <dd>{plan.vcpu} cores</dd>
-                    </div>
-                    <div>
-                      <dt>SSD</dt>
-                      <dd>{item.storage} GB</dd>
-                    </div>
-                  </dl>
-                )}
-
-                <div className="ocean-plan-card__bottom">
-                  <div className="ocean-plan-card__price-block">
-                    <span className="ocean-plan-card__price">{formatStockPrice(item)}</span>
-                    <span className="ocean-plan-card__price-note">per unit</span>
-                  </div>
-                  {item.quantity > 0 ? (
-                    <span className="ocean-plan-card__qty">{item.quantity} ready</span>
+                <div className="ocean-plan-row__specs">
+                  {item.type === "proxy" ? (
+                    <>
+                      <span>
+                        <strong>{item.port || "—"}</strong> port
+                      </span>
+                      <span>
+                        <strong>{item.region}</strong>
+                      </span>
+                    </>
                   ) : (
-                    <span className="ocean-plan-card__qty ocean-plan-card__qty--out">Sold out</span>
+                    <>
+                      <span>
+                        <strong>{plan.ram}GB</strong> RAM
+                      </span>
+                      <span>
+                        <strong>{plan.vcpu}</strong> vCPU
+                      </span>
+                      <span>
+                        <strong>{item.storage}GB</strong> SSD
+                      </span>
+                    </>
                   )}
                 </div>
 
-                <div className="ocean-plan-card__actions">
+                <div className="ocean-plan-row__price">
+                  <strong>{formatStockPrice(item)}</strong>
+                  <span>per unit</span>
+                </div>
+
+                <div className="ocean-plan-row__actions">
                   {!outOfStock ? (
                     <>
                       <button
                         type="button"
-                        className={`btn btn--outline ocean-plan-card__cart-btn${inCart ? " is-added" : ""}`}
+                        className={`btn btn--ghost ocean-plan-row__cart${inCart ? " is-added" : ""}`}
                         onClick={() => handleAddToCart(item)}
                         disabled={inCart}
                       >
-                        {inCart ? "In Cart" : "Add to Cart"}
+                        {inCart ? "Added" : "Cart"}
                       </button>
                       <button
                         type="button"
                         className="btn btn--primary"
                         onClick={() => setBuyItem(item)}
                       >
-                        Buy Now
+                        Buy
                       </button>
                     </>
                   ) : (
-                    <Link href="/client/support" className="btn btn--outline btn--block">
-                      Request Stock
+                    <Link href="/client/support" className="btn btn--outline">
+                      Request
                     </Link>
                   )}
                 </div>
