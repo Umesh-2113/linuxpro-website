@@ -17,6 +17,10 @@ function normalizeItem(item: StockItem): StockItem {
       typeof base.providerVmId === "number" && base.providerVmId > 0
         ? Math.round(base.providerVmId)
         : undefined,
+    providerProductId:
+      typeof base.providerProductId === "string" && base.providerProductId.trim()
+        ? base.providerProductId.trim()
+        : undefined,
     price:
       typeof base.price === "number" && base.price > 0
         ? base.price

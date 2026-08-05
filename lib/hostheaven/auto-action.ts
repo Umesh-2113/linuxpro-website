@@ -10,8 +10,17 @@ import {
   isHostHeavenConfigured,
 } from "@/lib/hostheaven/client";
 import { resolveHostHeavenServer } from "@/lib/hostheaven/resolve-server";
+import { executeOceanLinuxServerAction } from "@/lib/oceanlinux/actions";
+import {
+  isOceanLinuxConfigured,
+  oceanLinuxFindOrderIdByIp,
+} from "@/lib/oceanlinux/client";
+import { resolveOceanLinuxServer } from "@/lib/oceanlinux/resolve-server";
 import type { ReinstallOsOption, ServerActionRequest, ServerActionType } from "@/lib/server-actions";
-import { isHostHeavenProvider } from "@/lib/stock-providers";
+import {
+  isHostHeavenProvider,
+  isOceanLinuxProvider,
+} from "@/lib/stock-providers";
 
 function generateServerPassword(length = 14): string {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%";
@@ -45,8 +54,7 @@ export type CreateAndMaybeAutoActionInput = {
 };
 
 /**
- * Creates a server action. For HostHeaven-linked servers (by stock provider or IP match),
- * runs the provider API immediately instead of waiting for admin.
+ * Creates a server action. For API-linked servers, runs the provider API immediately.
  */
 export async function createAndMaybeAutoExecuteAction(
   input: CreateAndMaybeAutoActionInput
@@ -56,6 +64,84 @@ export async function createAndMaybeAutoExecuteAction(
     throw new Error("Server not found.");
   }
 
+  // --- OceanLinux path ---
+  let oceanServer = await resolveOceanLinuxServer(rawServer, input.serverIp);
+  if (isOceanLinuxConfigured() && isOceanLinuxProvider(oceanServer.provider)) {
+    if (!oceanServer.providerOrderId?.trim()) {
+      try {
+        const orderId = await oceanLinuxFindOrderIdByIp(
+          oceanServer.ip || input.serverIp
+        );
+        if (orderId) {
+          oceanServer = { ...oceanServer, providerOrderId: orderId };
+          await dbUpdateServer(oceanServer.id, {
+            provider: "oceanlinux",
+            providerOrderId: orderId,
+          });
+        }
+      } catch {
+        /* fall through — manage will error if still missing */
+      }
+    }
+
+    const newPassword =
+      input.action === "reinstall" ? generateServerPassword() : undefined;
+    const newUsername =
+      input.action === "reinstall" ? defaultUsername(input.reinstallOs) : undefined;
+
+    const pending = await dbCreateServerAction({
+      ...input,
+      newUsername,
+      newPassword,
+    });
+
+    try {
+      await dbUpdateServerAction(pending.id, { status: "processing" });
+      const result = await executeOceanLinuxServerAction(oceanServer, input.action, {
+        reinstallOs: input.reinstallOs,
+      });
+
+      if (result.resolvedFromIp || !oceanServer.providerOrderId) {
+        await dbUpdateServer(oceanServer.id, {
+          provider: "oceanlinux",
+          providerOrderId: result.orderId,
+        });
+      }
+
+      if (input.action === "start" || input.action === "restart") {
+        await dbUpdateServer(oceanServer.id, { powerState: "running" });
+      } else if (input.action === "stop") {
+        await dbUpdateServer(oceanServer.id, { powerState: "stopped" });
+      } else if (input.action === "reinstall") {
+        await dbUpdateServer(oceanServer.id, {
+          username: newUsername || oceanServer.username,
+          password: newPassword || oceanServer.password,
+          os: osLabel(input.reinstallOs),
+          powerState: "running",
+          provider: "oceanlinux",
+          providerOrderId: result.orderId,
+        });
+      }
+
+      const completed = await dbUpdateServerAction(pending.id, {
+        status: "completed",
+        adminNote: "Completed automatically via OceanLinux API.",
+        newUsername,
+        newPassword,
+      });
+      return completed ?? { ...pending, status: "completed" };
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "OceanLinux API request failed.";
+      await dbUpdateServerAction(pending.id, {
+        status: "rejected",
+        adminNote: message,
+      });
+      throw new Error(message);
+    }
+  }
+
+  // --- HostHeaven path ---
   let server = await resolveHostHeavenServer(rawServer, input.serverIp);
 
   if (isHostHeavenConfigured() && !isHostHeavenProvider(server.provider)) {
@@ -128,7 +214,6 @@ export async function createAndMaybeAutoExecuteAction(
           : ` Rebuild started; HostHeaven password sync pending (${result.passwordSyncError || "retry later"}).`
         : "";
 
-    // If password not synced yet, keep retrying in background on this Node process.
     if (input.action === "reinstall" && newPassword && !result.passwordSynced) {
       void (async () => {
         const { hostHeavenChangePasswordWithRetry } = await import("@/lib/hostheaven/client");

@@ -5,12 +5,14 @@ import {
   dbUpdateServerAction,
 } from "@/lib/db/server-actions";
 import { dbGetServerById, dbUpdateServer } from "@/lib/db/servers";
-import {
-  executeHostHeavenPasswordChange,
-  executeHostHeavenServerAction,
-} from "@/lib/hostheaven/actions";
+import { executeHostHeavenPasswordChange, executeHostHeavenServerAction } from "@/lib/hostheaven/actions";
 import { resolveHostHeavenServer } from "@/lib/hostheaven/resolve-server";
-import { isHostHeavenProvider } from "@/lib/stock-providers";
+import { executeOceanLinuxServerAction } from "@/lib/oceanlinux/actions";
+import { resolveOceanLinuxServer } from "@/lib/oceanlinux/resolve-server";
+import {
+  isHostHeavenProvider,
+  isOceanLinuxProvider,
+} from "@/lib/stock-providers";
 import { isAdminApiRequest, requireClientSession } from "@/lib/server-session";
 import type { ServerActionStatus } from "@/lib/server-actions";
 
@@ -32,7 +34,7 @@ async function assertActionAccess(actionId: string) {
   return { ok: true as const, action };
 }
 
-async function applyHostHeavenIfNeeded(
+async function applyProviderIfNeeded(
   actionId: string,
   status: ServerActionStatus,
   body: {
@@ -49,6 +51,28 @@ async function applyHostHeavenIfNeeded(
   const rawServer = await dbGetServerById(current.serverId);
   if (!rawServer) {
     return { ok: false as const, status: 404, error: "Server not found." };
+  }
+
+  const ocean = await resolveOceanLinuxServer(rawServer, current.serverIp);
+  if (isOceanLinuxProvider(ocean.provider)) {
+    if (status === "processing") {
+      const result = await executeOceanLinuxServerAction(ocean, current.action, {
+        reinstallOs: current.reinstallOs,
+      });
+      await dbUpdateServer(ocean.id, {
+        provider: "oceanlinux",
+        providerOrderId: result.orderId,
+        ...(current.action === "stop"
+          ? { powerState: "stopped" as const }
+          : current.action === "start" || current.action === "restart"
+            ? { powerState: "running" as const }
+            : {}),
+      });
+      if (current.action === "start" || current.action === "restart" || current.action === "stop") {
+        return { ok: true as const, autoComplete: true as const, nextStatus: "completed" as const };
+      }
+    }
+    return { ok: true as const, autoComplete: false as const };
   }
 
   const server = await resolveHostHeavenServer(rawServer, current.serverIp);
@@ -126,7 +150,7 @@ export async function PATCH(req: Request, { params }: Params) {
 
     if (requestedStatus === "processing" || requestedStatus === "completed") {
       try {
-        const hostResult = await applyHostHeavenIfNeeded(id, requestedStatus, body);
+        const hostResult = await applyProviderIfNeeded(id, requestedStatus, body);
         if (!hostResult.ok) {
           return NextResponse.json({ error: hostResult.error }, { status: hostResult.status });
         }
@@ -134,13 +158,13 @@ export async function PATCH(req: Request, { params }: Params) {
           body.status = hostResult.nextStatus;
         }
       } catch (error) {
-        console.error("[API server-actions PATCH] HostHeaven:", error);
+        console.error("[API server-actions PATCH] provider:", error);
         return NextResponse.json(
           {
             error:
               error instanceof Error
                 ? error.message
-                : "HostHeaven API request failed.",
+                : "Provider API request failed.",
           },
           { status: 502 }
         );

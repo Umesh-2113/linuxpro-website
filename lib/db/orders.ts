@@ -266,6 +266,7 @@ export async function dbDeliverOrderUnits(
       username: unit.username.trim(),
       password: unit.password,
       providerVmId: unit.providerVmId,
+      providerOrderId: unit.providerOrderId?.trim() || undefined,
       provider: unit.provider,
     }))
     .filter((unit) => unit.ip && unit.username && unit.password);
@@ -330,9 +331,7 @@ export async function dbDeliverOrderUnits(
 
 export async function dbDeliverOrderToCustomer(
   id: string,
-  creds:
-    | { ip: string; username: string; password: string }
-    | { ip: string; username: string; password: string }[]
+  creds: DeliverServerCreds | DeliverServerCreds[]
 ): Promise<Order | null> {
   const units = Array.isArray(creds) ? creds : [creds];
   return dbDeliverOrderUnits(id, units);

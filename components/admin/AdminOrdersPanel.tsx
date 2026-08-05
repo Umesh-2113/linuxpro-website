@@ -21,7 +21,7 @@ import {
   type Order,
   type PaymentStatus,
 } from "@/lib/orders";
-import { stockTypeLabels } from "@/lib/stock";
+import { stockTypeLabels, fetchStock, getStock } from "@/lib/stock";
 import {
   defaultExpiresAt,
   fetchServers,
@@ -69,9 +69,18 @@ export function AdminOrdersPanel() {
   const [search, setSearch] = useState("");
   const [adminNote, setAdminNote] = useState("");
   const [deliverUnits, setDeliverUnits] = useState<
-    { serverId?: string; ip: string; username: string; password: string }[]
+    {
+      serverId?: string;
+      ip: string;
+      username: string;
+      password: string;
+      providerOrderId?: string;
+    }[]
   >([{ ip: "", username: "", password: "" }]);
   const [deliverError, setDeliverError] = useState("");
+  const [stockProviderById, setStockProviderById] = useState<
+    Record<string, string>
+  >({});
   const [saveSuccess, setSaveSuccess] = useState("");
   const [serversTick, setServersTick] = useState(0);
   const [refreshBusy, setRefreshBusy] = useState(false);
@@ -105,7 +114,16 @@ export function AdminOrdersPanel() {
   const refreshFromApi = useCallback(async () => {
     setRefreshBusy(true);
     try {
-      await Promise.all([fetchOrders(undefined, { force: true }), fetchServers()]);
+      await Promise.all([
+        fetchOrders(undefined, { force: true }),
+        fetchServers(),
+        fetchStock(),
+      ]);
+      const map: Record<string, string> = {};
+      for (const item of getStock()) {
+        map[item.id] = item.provider ?? "manual";
+      }
+      setStockProviderById(map);
       setLoadError("");
       load();
       setServersTick((n) => n + 1);
@@ -165,6 +183,7 @@ export function AdminOrdersPanel() {
             ip: s.ip || "",
             username,
             password: s.password || "",
+            providerOrderId: s.providerOrderId || "",
           };
         })
       );
@@ -187,6 +206,8 @@ export function AdminOrdersPanel() {
 
   const selectedExpiry = selected ? getOrderExpiryIso(selected) : null;
   const selectedExpired = selectedExpiry ? isServerExpired(selectedExpiry) : false;
+  const selectedIsOceanLinux =
+    selected && stockProviderById[selected.stockId] === "oceanlinux";
 
   const handleSelect = (order: Order) => {
     setSelected(order);
@@ -563,6 +584,26 @@ export function AdminOrdersPanel() {
                               placeholder="Password"
                             />
                           </div>
+                          {selectedIsOceanLinux ? (
+                            <div className="auth-form__field">
+                              <label htmlFor={`edit-deliver-ol-${idx}`}>
+                                OceanLinux Order ID
+                              </label>
+                              <input
+                                id={`edit-deliver-ol-${idx}`}
+                                value={unit.providerOrderId || ""}
+                                onChange={(e) => {
+                                  const next = [...deliverUnits];
+                                  next[idx] = {
+                                    ...next[idx],
+                                    providerOrderId: e.target.value,
+                                  };
+                                  setDeliverUnits(next);
+                                }}
+                                placeholder="OceanLinux order id for API manage/sync"
+                              />
+                            </div>
+                          ) : null}
                         </div>
                       </div>
                     ))}
@@ -666,6 +707,25 @@ export function AdminOrdersPanel() {
                               disabled={selected.paymentStatus !== "received"}
                             />
                           </div>
+                          {selectedIsOceanLinux ? (
+                            <div className="auth-form__field">
+                              <label htmlFor={`deliver-ol-${idx}`}>OceanLinux Order ID</label>
+                              <input
+                                id={`deliver-ol-${idx}`}
+                                value={unit.providerOrderId || ""}
+                                onChange={(e) => {
+                                  const next = [...deliverUnits];
+                                  next[idx] = {
+                                    ...next[idx],
+                                    providerOrderId: e.target.value,
+                                  };
+                                  setDeliverUnits(next);
+                                }}
+                                placeholder="Required for start/stop/sync via API"
+                                disabled={selected.paymentStatus !== "received"}
+                              />
+                            </div>
+                          ) : null}
                         </div>
                       </div>
                     ))}

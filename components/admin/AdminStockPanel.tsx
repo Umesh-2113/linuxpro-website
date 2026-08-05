@@ -221,6 +221,18 @@ export function AdminStockPanel() {
                               <br />
                               <small>Auto by IP</small>
                             </>
+                          ) : item.provider === "oceanlinux" && item.providerProductId ? (
+                            <>
+                              <br />
+                              <small title={item.providerProductId}>
+                                OL · {item.providerProductId.slice(0, 8)}…
+                              </small>
+                            </>
+                          ) : item.provider === "oceanlinux" ? (
+                            <>
+                              <br />
+                              <small>Product not set</small>
+                            </>
                           ) : null}
                         </td>
                         <td>{formatStockSpecs(item)}</td>
@@ -286,7 +298,11 @@ export function AdminStockPanel() {
                             ? ` · VM #${item.providerVmId}`
                             : item.provider === "hostheaven"
                               ? " · Auto by IP"
-                              : ""}
+                              : item.provider === "oceanlinux" && item.providerProductId
+                                ? ` · ${item.providerProductId}`
+                                : item.provider === "oceanlinux"
+                                  ? " · Product not set"
+                                  : ""}
                         </dd>
                       </div>
                       <div>

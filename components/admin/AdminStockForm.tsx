@@ -160,6 +160,12 @@ export function AdminStockForm({ editingItem, onSaved, onCancel }: Props) {
   const [customOs, setCustomOs] = useState(defaultForm.customOs);
   const [provider, setProvider] = useState<StockProvider>("manual");
   const [providerVmId, setProviderVmId] = useState("");
+  const [providerProductId, setProviderProductId] = useState("");
+  const [oceanProducts, setOceanProducts] = useState<
+    { id: string; name: string; serverType?: string; available: boolean }[]
+  >([]);
+  const [oceanProductsError, setOceanProductsError] = useState("");
+  const [oceanProductsLoading, setOceanProductsLoading] = useState(false);
   const [formError, setFormError] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -200,8 +206,42 @@ export function AdminStockForm({ editingItem, onSaved, onCancel }: Props) {
         ? String(editingItem.providerVmId)
         : ""
     );
+    setProviderProductId(editingItem.providerProductId?.trim() || "");
     setFormError("");
   }, [editingItem]);
+
+  useEffect(() => {
+    if (provider !== "oceanlinux") return;
+    let cancelled = false;
+    setOceanProductsLoading(true);
+    setOceanProductsError("");
+    void fetch("/api/admin/oceanlinux/products")
+      .then(async (res) => {
+        const data = (await res.json().catch(() => ({}))) as {
+          products?: { id: string; name: string; serverType?: string; available: boolean }[];
+          error?: string;
+        };
+        if (cancelled) return;
+        if (!res.ok) {
+          setOceanProducts([]);
+          setOceanProductsError(data.error || "Failed to load OceanLinux products.");
+          return;
+        }
+        setOceanProducts(Array.isArray(data.products) ? data.products : []);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setOceanProducts([]);
+          setOceanProductsError("Failed to load OceanLinux products.");
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setOceanProductsLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [provider]);
 
   const updateRamPlanRow = (id: string, patch: Partial<RamPlanRow>) => {
     setRamPlanRows((rows) =>
@@ -254,12 +294,21 @@ export function AdminStockForm({ editingItem, onSaved, onCancel }: Props) {
     return {
       provider,
       providerVmId: vmId && vmId > 0 ? Math.round(vmId) : undefined,
+      providerProductId:
+        provider === "oceanlinux" && providerProductId.trim()
+          ? providerProductId.trim()
+          : undefined,
     };
   };
 
   const validateAndGetValues = () => {
     if (!series.trim()) {
       setFormError("Series is required (e.g. 162.4.xx).");
+      return null;
+    }
+
+    if (provider === "oceanlinux" && !providerProductId.trim()) {
+      setFormError("Select an OceanLinux product for this stock.");
       return null;
     }
 
@@ -390,8 +439,8 @@ export function AdminStockForm({ editingItem, onSaved, onCancel }: Props) {
             ))}
           </select>
           <small className="auth-form__hint">
-            HostHeaven: when you process start/stop/reinstall, the API finds the VM by
-            the server IP (no VM ID needed).
+            HostHeaven / OceanLinux: start/stop/reinstall/sync use that company API for
+            servers from this stock only.
           </small>
         </div>
 
@@ -410,6 +459,43 @@ export function AdminStockForm({ editingItem, onSaved, onCancel }: Props) {
             <small className="auth-form__hint">
               Only needed if multiple VMs share the same IP. Otherwise leave empty.
             </small>
+          </div>
+        )}
+
+        {provider === "oceanlinux" && (
+          <div className="auth-form__field">
+            <label htmlFor="stock-ocean-product">OceanLinux product</label>
+            <select
+              id="stock-ocean-product"
+              value={providerProductId}
+              onChange={(e) => setProviderProductId(e.target.value)}
+              required
+            >
+              <option value="">
+                {oceanProductsLoading ? "Loading products…" : "Select product…"}
+              </option>
+              {providerProductId &&
+              !oceanProducts.some((p) => p.id === providerProductId) ? (
+                <option value={providerProductId}>Saved: {providerProductId}</option>
+              ) : null}
+              {oceanProducts.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                  {p.serverType ? ` · ${p.serverType}` : ""}
+                  {p.available ? "" : " (unavailable)"}
+                </option>
+              ))}
+            </select>
+            {oceanProductsError ? (
+              <small className="auth-form__hint" style={{ color: "var(--danger, #c44)" }}>
+                {oceanProductsError}
+              </small>
+            ) : (
+              <small className="auth-form__hint">
+                Only this IP series will be managed via OceanLinux API. On deliver, save the
+                OceanLinux Order ID for start/stop/sync.
+              </small>
+            )}
           </div>
         )}
 

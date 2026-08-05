@@ -4,25 +4,41 @@ import {
   dbGetOrderById,
   dbUpdateOrderCredentials,
 } from "@/lib/db/orders";
+import { dbGetStockById } from "@/lib/db/stock";
 import { dbUpdateServer } from "@/lib/db/servers";
 import { isAdminApiRequest } from "@/lib/server-session";
+import type { StockProvider } from "@/lib/stock-providers";
 
 type Params = { params: Promise<{ id: string }> };
 
-type CredUnit = { ip?: string; username?: string; password?: string; serverId?: string };
+type CredUnit = {
+  ip?: string;
+  username?: string;
+  password?: string;
+  serverId?: string;
+  providerOrderId?: string;
+};
 
 function parseUnits(body: {
   ip?: string;
   username?: string;
   password?: string;
+  providerOrderId?: string;
   units?: CredUnit[];
-}): { ip: string; username: string; password: string; serverId?: string }[] {
+}): {
+  ip: string;
+  username: string;
+  password: string;
+  serverId?: string;
+  providerOrderId?: string;
+}[] {
   if (Array.isArray(body.units) && body.units.length > 0) {
     return body.units.map((u) => ({
       ip: String(u.ip ?? "").trim(),
       username: String(u.username ?? "").trim(),
       password: String(u.password ?? ""),
       serverId: u.serverId ? String(u.serverId) : undefined,
+      providerOrderId: u.providerOrderId ? String(u.providerOrderId).trim() : undefined,
     }));
   }
   return [
@@ -30,6 +46,9 @@ function parseUnits(body: {
       ip: String(body.ip ?? "").trim(),
       username: String(body.username ?? "").trim(),
       password: String(body.password ?? ""),
+      providerOrderId: body.providerOrderId
+        ? String(body.providerOrderId).trim()
+        : undefined,
     },
   ];
 }
@@ -49,6 +68,8 @@ export async function POST(req: Request, { params }: Params) {
     const body = await req.json();
     const units = parseUnits(body);
     const mode = body.mode;
+    const stock = await dbGetStockById(order.stockId);
+    const provider = (stock?.provider || "manual") as StockProvider;
 
     if (mode === "update") {
       if (units.length === 1 && !units[0].serverId) {
@@ -70,6 +91,9 @@ export async function POST(req: Request, { params }: Params) {
           ip: unit.ip,
           username: unit.username,
           password: unit.password,
+          ...(unit.providerOrderId
+            ? { providerOrderId: unit.providerOrderId, provider: "oceanlinux" as const }
+            : {}),
         });
       }
 
@@ -83,7 +107,12 @@ export async function POST(req: Request, { params }: Params) {
       return NextResponse.json(updated);
     }
 
-    const updated = await dbDeliverOrderToCustomer(id, units);
+    const deliverUnits = units.map((u) => ({
+      ...u,
+      provider: provider === "manual" ? undefined : provider,
+    }));
+
+    const updated = await dbDeliverOrderToCustomer(id, deliverUnits);
     if (!updated) {
       return NextResponse.json({ error: "Could not deliver order." }, { status: 400 });
     }

@@ -13,6 +13,7 @@ export type DeliverServerCreds = {
   username: string;
   password: string;
   providerVmId?: number;
+  providerOrderId?: string;
   provider?: StockProvider;
   expiresAt?: string;
 };
@@ -119,6 +120,7 @@ export async function dbCreateServersFromOrder(
       powerState: "running",
       provider: unit.provider ?? stock?.provider,
       providerVmId: unit.providerVmId ?? stock?.providerVmId,
+      providerOrderId: unit.providerOrderId?.trim() || undefined,
       expiresAt: unit.expiresAt || defaultExpiresAt(now),
       createdAt: now,
     });
@@ -147,6 +149,7 @@ export async function dbUpdateServer(
       | "powerState"
       | "os"
       | "providerVmId"
+      | "providerOrderId"
       | "provider"
       | "expiresAt"
     >

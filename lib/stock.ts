@@ -171,6 +171,8 @@ export type StockItem = {
   provider?: StockProvider;
   /** Optional override; otherwise resolved from server IP via HostHeaven API. */
   providerVmId?: number;
+  /** OceanLinux product id when provider is oceanlinux. */
+  providerProductId?: string;
   createdAt: string;
 };
 
@@ -232,6 +234,10 @@ function normalizeItem(item: StockItem): StockItem {
     providerVmId:
       typeof base.providerVmId === "number" && base.providerVmId > 0
         ? Math.round(base.providerVmId)
+        : undefined,
+    providerProductId:
+      typeof base.providerProductId === "string" && base.providerProductId.trim()
+        ? base.providerProductId.trim()
         : undefined,
     ram: primaryRam,
     vcpu: primaryVcpu,

@@ -21,6 +21,8 @@ export type UserServer = {
   powerState: "running" | "stopped" | "unknown";
   provider?: StockProvider;
   providerVmId?: number;
+  /** OceanLinux reseller order id used for manage/sync. */
+  providerOrderId?: string;
   stockId?: string;
   /** ISO timestamp when this VPS/IP plan expires. */
   expiresAt?: string;
