@@ -11,9 +11,9 @@ async function collection() {
 function normalize(item: BackupStockItem): BackupStockItem {
   return {
     ...item,
-    port: item.port ?? "22",
+    port: item.port ?? (item.type === "vps" ? "" : "22"),
     note: item.note ?? "",
-    os: item.os || "Ubuntu 22.04",
+    os: item.os ?? "",
     region: item.region || "Mumbai",
     status: (item.status as BackupStockStatus) || "free",
   };
@@ -66,6 +66,7 @@ export async function dbAddBackupStockItem(
       password: data.password,
       series: data.series.trim(),
       port: (data.port || (data.type === "vps" ? "" : "22")).trim(),
+      os: (data.os || "").trim(),
       id: `bak-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       status: "free",
       createdAt: now,
@@ -97,14 +98,15 @@ export async function dbAddBackupStockBulk(
     const parts = line.split(/[|,\t]/).map((p) => p.trim());
     const [ip, username, password, port] = parts;
     if (!ip || !username || !password) continue;
+    const type = defaults.type ?? "vps";
     const item = await dbAddBackupStockItem({
-      type: defaults.type ?? "vps",
+      type,
       series: defaults.series || ip.split(".").slice(0, 2).join("."),
       ip,
       username,
       password,
-      port: port || defaults.port || "22",
-      os: defaults.os || "Ubuntu 22.04",
+      port: port || defaults.port || (type === "vps" ? "" : "22"),
+      os: defaults.os ?? (type === "linux" ? "Ubuntu 22.04" : type === "proxy" ? "N/A" : ""),
       region: defaults.region || "Mumbai",
       note: "",
     });

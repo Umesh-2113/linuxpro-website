@@ -25,18 +25,6 @@ type FormState = {
   note: string;
 };
 
-const emptyForm: FormState = {
-  type: "vps",
-  series: "",
-  ip: "",
-  username: "",
-  password: "",
-  port: "",
-  os: "Ubuntu 22.04",
-  region: "Mumbai",
-  note: "",
-};
-
 function defaultsForType(type: StockType): Partial<FormState> {
   if (type === "proxy") {
     return { port: "8000", os: "N/A", username: "user" };
@@ -44,9 +32,21 @@ function defaultsForType(type: StockType): Partial<FormState> {
   if (type === "linux") {
     return { port: "22", os: "Ubuntu 22.04", username: "root" };
   }
-  // VPS: no port field; username is separate (not root by default)
-  return { port: "", os: "Ubuntu 22.04", username: "" };
+  // VPS: no port; username + OS filled by admin
+  return { port: "", os: "", username: "" };
 }
+
+const emptyForm: FormState = {
+  type: "vps",
+  series: "",
+  ip: "",
+  username: "",
+  password: "",
+  port: "",
+  os: "",
+  region: "Mumbai",
+  note: "",
+};
 
 export function AdminBackupStockPanel() {
   const [items, setItems] = useState<BackupStockItem[]>([]);
@@ -331,6 +331,14 @@ export function AdminBackupStockPanel() {
                 <span>OS</span>
                 <input
                   value={form.os}
+                  placeholder={
+                    form.type === "vps"
+                      ? "Khud OS likho (Windows / Ubuntu …)"
+                      : form.type === "linux"
+                        ? "Ubuntu 22.04"
+                        : "N/A"
+                  }
+                  required={form.type === "vps"}
                   onChange={(e) => setForm((f) => ({ ...f, os: e.target.value }))}
                 />
               </label>
