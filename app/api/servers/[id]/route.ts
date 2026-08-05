@@ -41,7 +41,15 @@ export async function PATCH(req: Request, { params }: Params) {
       return NextResponse.json({ error: access.error }, { status: access.status });
     }
     const body = await req.json();
-    const server = await dbUpdateServer(id, body);
+    const isAdmin = await isAdminApiRequest();
+    const allowed = isAdmin
+      ? body
+      : {
+          ...(typeof body.powerState === "string" ? { powerState: body.powerState } : {}),
+          ...(typeof body.os === "string" ? { os: body.os } : {}),
+          ...(typeof body.password === "string" ? { password: body.password } : {}),
+        };
+    const server = await dbUpdateServer(id, allowed);
     if (!server) {
       return NextResponse.json({ error: "Server not found." }, { status: 404 });
     }

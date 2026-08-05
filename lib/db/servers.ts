@@ -1,6 +1,10 @@
 import { getOrderSubtitle, type Order } from "@/lib/orders";
 import type { StockProvider } from "@/lib/stock-providers";
-import type { UserServer } from "@/lib/user-servers";
+import {
+  defaultExpiresAt,
+  resolveServerExpiresAt,
+  type UserServer,
+} from "@/lib/user-servers";
 import { dbGetStockById } from "@/lib/db/stock";
 import { getCollection } from "@/lib/mongodb";
 
@@ -10,10 +14,19 @@ export type DeliverServerCreds = {
   password: string;
   providerVmId?: number;
   provider?: StockProvider;
+  expiresAt?: string;
 };
 
 async function collection() {
   return getCollection<UserServer>("servers");
+}
+
+function normalizeServer(server: UserServer): UserServer {
+  return {
+    ...server,
+    powerState: server.powerState ?? "running",
+    expiresAt: resolveServerExpiresAt(server),
+  };
 }
 
 function serverNameFromOrder(order: Order, serverId: string, orderId: string): string {
@@ -25,7 +38,7 @@ function serverNameFromOrder(order: Order, serverId: string, orderId: string): s
 
 export async function dbGetServers(): Promise<UserServer[]> {
   const servers = await (await collection()).find({}).sort({ createdAt: -1 }).toArray();
-  return servers.map((s) => ({ ...s, powerState: s.powerState ?? "running" }));
+  return servers.map(normalizeServer);
 }
 
 export async function dbGetServersByUser(email: string): Promise<UserServer[]> {
@@ -39,7 +52,7 @@ export async function dbGetServersByOrder(orderId: string): Promise<UserServer[]
 export async function dbGetServerById(id: string): Promise<UserServer | null> {
   const server = await (await collection()).findOne({ id });
   if (!server) return null;
-  return { ...server, powerState: server.powerState ?? "running" };
+  return normalizeServer(server);
 }
 
 export async function dbCreateServersFromOrder(
@@ -103,6 +116,7 @@ export async function dbCreateServersFromOrder(
       powerState: "running",
       provider: unit.provider ?? stock?.provider,
       providerVmId: unit.providerVmId ?? stock?.providerVmId,
+      expiresAt: unit.expiresAt || defaultExpiresAt(now),
       createdAt: now,
     });
   }
@@ -110,7 +124,7 @@ export async function dbCreateServersFromOrder(
   if (created.length > 0) {
     await col.insertMany(created);
   }
-  return created;
+  return created.map(normalizeServer);
 }
 
 export async function dbUpdateServer(
@@ -118,16 +132,30 @@ export async function dbUpdateServer(
   updates: Partial<
     Pick<
       UserServer,
-      "ip" | "username" | "password" | "port" | "name" | "status" | "powerState" | "os" | "providerVmId" | "provider"
+      | "ip"
+      | "username"
+      | "password"
+      | "port"
+      | "name"
+      | "status"
+      | "powerState"
+      | "os"
+      | "providerVmId"
+      | "provider"
+      | "expiresAt"
     >
   >
 ): Promise<UserServer | null> {
   const col = await collection();
   const existing = await col.findOne({ id });
   if (!existing) return null;
-  const next = { ...existing, ...updates, powerState: updates.powerState ?? existing.powerState ?? "running" };
+  const next = {
+    ...existing,
+    ...updates,
+    powerState: updates.powerState ?? existing.powerState ?? "running",
+  };
   await col.updateOne({ id }, { $set: next });
-  return next;
+  return normalizeServer(next);
 }
 
 export async function dbUpdateServersCredentialsForOrder(

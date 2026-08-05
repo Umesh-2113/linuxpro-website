@@ -8289,6 +8289,16 @@ section { padding: 100px 0; }
   opacity: 0.8;
 }
 
+.manage-pro-chip--danger {
+  color: #f87171;
+  border-color: rgba(248, 113, 113, 0.35);
+  background: rgba(248, 113, 113, 0.08);
+}
+
+.manage-pro-chip--danger svg {
+  color: #f87171;
+}
+
 .manage-pro-power {
   display: flex;
   flex-direction: column;
@@ -9111,6 +9121,14 @@ section { padding: 100px 0; }
   grid-template-columns: repeat(3, 1fr);
   gap: 12px;
   margin-bottom: 20px;
+}
+
+.servers-pro-card__meta--4 {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+.servers-pro-card__meta-expiry.is-expired strong {
+  color: #f87171;
 }
 
 .servers-pro-card__meta span {

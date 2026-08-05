@@ -22,8 +22,41 @@ export type UserServer = {
   provider?: StockProvider;
   providerVmId?: number;
   stockId?: string;
+  /** ISO timestamp when this VPS/IP plan expires. */
+  expiresAt?: string;
   createdAt: string;
 };
+
+/** Default billing period for delivered stock (1 month). */
+export const SERVER_BILLING_DAYS = 30;
+
+export function defaultExpiresAt(fromIso?: string): string {
+  const base = fromIso ? new Date(fromIso) : new Date();
+  const start = Number.isNaN(base.getTime()) ? new Date() : base;
+  start.setDate(start.getDate() + SERVER_BILLING_DAYS);
+  return start.toISOString();
+}
+
+export function resolveServerExpiresAt(server: Pick<UserServer, "expiresAt" | "createdAt">): string {
+  if (server.expiresAt && !Number.isNaN(new Date(server.expiresAt).getTime())) {
+    return server.expiresAt;
+  }
+  return defaultExpiresAt(server.createdAt);
+}
+
+export function formatServerExpiry(iso: string): string {
+  return new Date(iso).toLocaleString("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+export function isServerExpired(iso: string): boolean {
+  return new Date(iso).getTime() < Date.now();
+}
 
 let cache: UserServer[] = [];
 let fetchPromise: Promise<UserServer[]> | null = null;
@@ -53,6 +86,7 @@ export async function fetchServers(email?: string): Promise<UserServer[]> {
       const normalized = servers.map((s) => ({
         ...s,
         powerState: s.powerState ?? "running",
+        expiresAt: resolveServerExpiresAt(s),
       }));
       if (email) {
         mergeUserServers(normalized, email);

@@ -3,7 +3,13 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { getUser } from "@/lib/auth";
-import { getServersByUser, type UserServer } from "@/lib/user-servers";
+import {
+  formatServerExpiry,
+  getServersByUser,
+  isServerExpired,
+  resolveServerExpiresAt,
+  type UserServer,
+} from "@/lib/user-servers";
 import { stockTypeLabels } from "@/lib/stock";
 
 function powerLabel(state: UserServer["powerState"]) {
@@ -14,6 +20,8 @@ function powerLabel(state: UserServer["powerState"]) {
 
 function ServerCard({ server }: { server: UserServer }) {
   const osDisplay = server.os && server.os !== "N/A" ? server.os : "—";
+  const expiresAt = resolveServerExpiresAt(server);
+  const expired = isServerExpired(expiresAt);
 
   return (
     <article className={`servers-pro-card servers-pro-card--${server.powerState}`}>
@@ -32,7 +40,7 @@ function ServerCard({ server }: { server: UserServer }) {
 
       <div className="servers-pro-card__ip">{server.ip}</div>
 
-      <div className="servers-pro-card__meta">
+      <div className="servers-pro-card__meta servers-pro-card__meta--4">
         <span>
           <small>OS</small>
           <strong>{osDisplay}</strong>
@@ -45,11 +53,15 @@ function ServerCard({ server }: { server: UserServer }) {
           <small>Order</small>
           <strong>#{server.orderId}</strong>
         </span>
+        <span className={expired ? "servers-pro-card__meta-expiry is-expired" : "servers-pro-card__meta-expiry"}>
+          <small>Expires</small>
+          <strong title={expiresAt}>{formatServerExpiry(expiresAt)}</strong>
+        </span>
       </div>
 
       <div className="servers-pro-card__footer">
         <span className={`servers-pro-status servers-pro-status--${server.status}`}>
-          {server.status}
+          {expired ? "expired" : server.status}
         </span>
         <Link href={`/client/servers/${server.id}`} className="servers-pro-card__btn">
           Manage

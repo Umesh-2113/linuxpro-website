@@ -5,7 +5,14 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { getUser } from "@/lib/auth";
 import { CredentialRow } from "@/components/client/ServerCredentials";
-import { getServerById, fetchServers, type UserServer } from "@/lib/user-servers";
+import {
+  formatServerExpiry,
+  getServerById,
+  fetchServers,
+  isServerExpired,
+  resolveServerExpiresAt,
+  type UserServer,
+} from "@/lib/user-servers";
 import { stockTypeLabels } from "@/lib/stock";
 import {
   actionStatusLabels,
@@ -228,6 +235,8 @@ export function ClientServerManagePanel({ serverId }: Props) {
   const pendingStop = pendingFor("stop");
   const pendingReinstall = pendingFor("reinstall");
   const osDisplay = server.os && server.os !== "N/A" ? server.os : "—";
+  const expiresAt = resolveServerExpiresAt(server);
+  const expired = isServerExpired(expiresAt);
 
   const actionItems: {
     action: ServerActionType;
@@ -381,6 +390,13 @@ export function ClientServerManagePanel({ serverId }: Props) {
                   <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
                 </svg>
                 {server.plan}
+              </span>
+              <span className={`manage-pro-chip${expired ? " manage-pro-chip--danger" : ""}`}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
+                  <circle cx="12" cy="12" r="9" />
+                  <path d="M12 7v5l3 2" />
+                </svg>
+                {expired ? "Expired" : "Expires"} {formatServerExpiry(expiresAt)}
               </span>
             </div>
           </div>
