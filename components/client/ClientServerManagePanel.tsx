@@ -38,7 +38,7 @@ function powerLabel(state: UserServer["powerState"]) {
 
 function StartIcon() {
   return (
-    <svg viewBox="0 0 24 24" fill="currentColor" width="22" height="22">
+    <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20" aria-hidden>
       <path d="M8 5v14l11-7z" />
     </svg>
   );
@@ -46,7 +46,7 @@ function StartIcon() {
 
 function StopIcon() {
   return (
-    <svg viewBox="0 0 24 24" fill="currentColor" width="22" height="22">
+    <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20" aria-hidden>
       <rect x="6" y="6" width="12" height="12" rx="1" />
     </svg>
   );
@@ -54,7 +54,7 @@ function StopIcon() {
 
 function ReinstallIcon() {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="22" height="22">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="20" height="20" aria-hidden>
       <path d="M1 4v6h6M23 20v-6h-6" />
       <path d="M20.49 9A9 9 0 005.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 013.51 15" />
     </svg>
@@ -125,13 +125,10 @@ export function ClientServerManagePanel({ serverId }: Props) {
       if (!user) return;
 
       setBusyAction(action);
-      if (action === "reinstall") {
-        setReinstallPhase(1);
-      }
+      if (action === "reinstall") setReinstallPhase(1);
 
       try {
         if (action === "reinstall") {
-          // Visual progress while HostHeaven rebuild + password sync runs
           window.setTimeout(() => setReinstallPhase((p) => (p < 2 ? 2 : p)), 2500);
           window.setTimeout(() => setReinstallPhase((p) => (p < 3 ? 3 : p)), 8000);
         }
@@ -163,7 +160,7 @@ export function ClientServerManagePanel({ serverId }: Props) {
         if (viaApi) {
           setToast(
             action === "reinstall"
-              ? `${label} started — new password saved here and syncing to the server (may take 1–2 min while rebuild finishes).`
+              ? `${label} started — new password saved here (may take 1–2 min).`
               : `${label} completed successfully.`
           );
           await fetchServers(user.email);
@@ -225,7 +222,7 @@ export function ClientServerManagePanel({ serverId }: Props) {
 
   if (!server) {
     return (
-      <div className="stock-empty glass stock-empty--cool">
+      <div className="cs-empty">
         <h3>Server not found</h3>
         <p>This server does not exist or you don&apos;t have access.</p>
         <Link href="/client/servers" className="btn btn--primary">
@@ -262,15 +259,14 @@ export function ClientServerManagePanel({ serverId }: Props) {
   ];
 
   return (
-    <div className="manage-pro">
-      {toast && (
-        <div className="manage-pro-toast">
-          <span className="manage-pro-toast__icon">✓</span>
+    <div className="cm-page">
+      {toast ? (
+        <div className="cm-toast" role="status">
           {toast}
         </div>
-      )}
+      ) : null}
 
-      {showReinstallModal && (
+      {showReinstallModal ? (
         <div
           className="manage-modal-overlay manage-modal-overlay--solid"
           onClick={closeReinstallModal}
@@ -291,16 +287,7 @@ export function ClientServerManagePanel({ serverId }: Props) {
                     const done = reinstallPhase > stepNum;
                     const active = reinstallPhase === stepNum;
                     return (
-                      <li
-                        key={step}
-                        className={
-                          done
-                            ? "is-done"
-                            : active
-                              ? "is-active"
-                              : ""
-                        }
-                      >
+                      <li key={step} className={done ? "is-done" : active ? "is-active" : ""}>
                         <span className="manage-reinstall-processing__dot" />
                         {step}
                       </li>
@@ -308,7 +295,7 @@ export function ClientServerManagePanel({ serverId }: Props) {
                   })}
                 </ul>
                 <p className="manage-reinstall-processing__hint">
-                  Please wait — rebuild can take up to a minute. Do not close this window.
+                  Please wait — do not close this window.
                 </p>
               </div>
             ) : (
@@ -344,8 +331,8 @@ export function ClientServerManagePanel({ serverId }: Props) {
 
                 <p className="manage-modal-warning">
                   {server.provider === "hostheaven"
-                    ? "OS will rebuild now via API. New username and password will appear in credentials below."
-                    : "If this server supports API control, rebuild runs immediately. Otherwise admin will deliver new credentials."}
+                    ? "OS will rebuild now via API. New username and password will appear below."
+                    : "If API control is available, rebuild runs now. Otherwise admin delivers new credentials."}
                 </p>
 
                 <div className="manage-modal-actions">
@@ -353,113 +340,69 @@ export function ClientServerManagePanel({ serverId }: Props) {
                     Cancel
                   </button>
                   <button type="button" className="btn btn--danger" onClick={handleReinstallConfirm}>
-                    {server.provider === "hostheaven" ? "Reinstall via API" : "Confirm Reinstall"}
+                    Confirm Reinstall
                   </button>
                 </div>
               </>
             )}
           </div>
         </div>
-      )}
+      ) : null}
 
-      <section className="manage-pro-hero">
-        <div className="manage-pro-hero__glow" aria-hidden />
-        <button
-          type="button"
-          className="manage-pro-back"
-          onClick={() => router.push("/client/servers")}
-        >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
-            <path d="M19 12H5M12 19l-7-7 7-7" />
-          </svg>
-          All Servers
-        </button>
+      <button type="button" className="cm-back" onClick={() => router.push("/client/servers")}>
+        ← All Servers
+      </button>
 
-        <div className="manage-pro-hero__body">
-          <div className="manage-pro-hero__main">
-            <div className="manage-pro-hero__tags">
-              <span className="manage-pro-tag">{stockTypeLabels[server.type]}</span>
-              <span className="manage-pro-tag manage-pro-tag--muted">{server.region}</span>
-              <span className="manage-pro-tag manage-pro-tag--muted">#{server.orderId}</span>
-            </div>
-            <h1 className="manage-pro-hero__title">{server.name}</h1>
-            <div className="manage-pro-hero__ip">{server.ip}</div>
-            <div className="manage-pro-hero__chips">
-              <span className="manage-pro-chip">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
-                  <rect x="2" y="3" width="20" height="14" rx="2" />
-                  <path d="M8 21h8M12 17v4" />
-                </svg>
-                {osDisplay}
-              </span>
-              <span className="manage-pro-chip">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
-                  <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
-                </svg>
-                {server.plan}
-              </span>
-              <span className={`manage-pro-chip${expired ? " manage-pro-chip--danger" : ""}`}>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
-                  <circle cx="12" cy="12" r="9" />
-                  <path d="M12 7v5l3 2" />
-                </svg>
-                {expired ? "Expired" : "Expires"} {formatServerExpiry(expiresAt)}
-              </span>
-            </div>
+      <header className="cm-hero">
+        <div className="cm-hero__main">
+          <div className="cm-hero__tags">
+            <span>{stockTypeLabels[server.type]}</span>
+            <span>{server.region}</span>
+            <span>#{server.orderId}</span>
           </div>
-
-          <div className={`manage-pro-power manage-pro-power--${displayPower}`}>
-            <div className="manage-pro-power__ring">
-              <div className="manage-pro-power__core">
-                {actionIcons[displayPower === "running" ? "start" : "stop"]}
-              </div>
-            </div>
-            <span className="manage-pro-power__label">{displayPowerLabel}</span>
-            <span
-              className={`manage-pro-power__account manage-pro-power__account--${
-                expired ? "suspended" : server.status
-              }`}
-            >
-              {displayAccountStatus}
-            </span>
-          </div>
+          <h1>{server.name}</h1>
+          <p className="cm-hero__ip">{server.ip}</p>
+          <p className="cm-hero__meta">
+            {osDisplay} · {server.plan} · {expired ? "Expired" : "Expires"}{" "}
+            {formatServerExpiry(expiresAt)}
+          </p>
         </div>
-      </section>
+        <div className={`cm-power cm-power--${displayPower}`}>
+          <strong>{displayPowerLabel}</strong>
+          <span>{displayAccountStatus}</span>
+        </div>
+      </header>
 
-      <section className="manage-pro-actions glass">
-        <div className="manage-pro-actions__head">
+      <section className="cm-controls">
+        <div className="cm-controls__head">
           <h2>Server Controls</h2>
           <p>
             {expired
-              ? "This plan has expired — start/stop/reinstall are disabled until renewal."
+              ? "Expired — controls disabled until renewal."
               : server.provider === "hostheaven"
-                ? "Start, stop, and reinstall run instantly via API"
-                : "API servers run instantly; others go to admin queue"}
+                ? "Start, stop, and reinstall run via API."
+                : "API servers run instantly; others go to admin queue."}
           </p>
         </div>
 
-        <div className="manage-pro-actions__grid">
+        <div className="cm-controls__grid">
           {actionItems.map(({ action, pending, pendingLabel }) => {
             const isBusy = busyAction === action;
             return (
               <button
                 key={action}
                 type="button"
-                className={`manage-pro-action manage-pro-action--${action}${
-                  pending || isBusy ? " manage-pro-action--pending" : ""
-                }`}
+                className={`cm-action cm-action--${action}${pending || isBusy ? " is-busy" : ""}`}
                 onClick={() => handleAction(action)}
                 disabled={!!pending || isSuspended || expired || !!busyAction}
               >
-                <span className={`manage-pro-action__icon${isBusy ? " is-spinning" : ""}`}>
-                  {actionIcons[action]}
-                </span>
-                <span className="manage-pro-action__text">
+                <span className="cm-action__icon">{actionIcons[action]}</span>
+                <span className="cm-action__text">
                   <strong>{serverActionLabels[action]}</strong>
                   <small>{serverActionDescriptions[action]}</small>
                 </span>
                 {(pending || isBusy) && (
-                  <span className="manage-pro-action__status">
+                  <span className="cm-action__status">
                     {isBusy ? "Processing…" : pendingLabel ?? actionStatusLabels[pending!.status]}
                   </span>
                 )}
@@ -468,88 +411,50 @@ export function ClientServerManagePanel({ serverId }: Props) {
           })}
         </div>
 
-        {expired && (
-          <div className="manage-pro-alert">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18">
-              <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
-              <path d="M12 9v4M12 17h.01" />
-            </svg>
-            Plan expired — server shown as Offline. Renew to restore controls.
-          </div>
-        )}
-
-        {isSuspended && (
-          <div className="manage-pro-alert">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18">
-              <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
-              <path d="M12 9v4M12 17h.01" />
-            </svg>
-            Server suspended — contact support to restore access.
+        {(expired || isSuspended) && (
+          <div className="cm-alert">
+            {expired
+              ? "Plan expired — renew to restore start / stop / reinstall."
+              : "Server suspended — contact support to restore access."}
           </div>
         )}
       </section>
 
-      <div className="manage-pro-grid">
-        <section className="manage-pro-creds glass">
-          <div className="manage-pro-creds__bar">
-            <span className="manage-pro-creds__dot manage-pro-creds__dot--red" />
-            <span className="manage-pro-creds__dot manage-pro-creds__dot--yellow" />
-            <span className="manage-pro-creds__dot manage-pro-creds__dot--green" />
-            <span className="manage-pro-creds__title">ssh credentials</span>
-          </div>
-          <div className="manage-pro-creds__body">
-            <p className="manage-pro-creds__hint">
-              Use these details to connect. Updated automatically after OS reinstall.
-            </p>
-            <div className="server-creds server-creds--large">
-              <CredentialRow label="IP Address" value={server.ip} />
-              {server.type === "proxy" && server.port && (
-                <CredentialRow label="Port" value={server.port} />
-              )}
-              <CredentialRow label="Username" value={server.username} />
-              <CredentialRow label="Password" value={server.password} secret />
-            </div>
+      <div className="cm-grid">
+        <section className="cm-creds">
+          <h2>Login credentials</h2>
+          <p className="cm-creds__hint">Updated automatically after OS reinstall.</p>
+          <div className="server-creds server-creds--large">
+            <CredentialRow label="IP Address" value={server.ip} />
+            {server.type === "proxy" && server.port ? (
+              <CredentialRow label="Port" value={server.port} />
+            ) : null}
+            <CredentialRow label="Username" value={server.username} />
+            <CredentialRow label="Password" value={server.password} secret />
           </div>
         </section>
 
-        <aside className="manage-pro-specs glass">
+        <aside className="cm-overview">
           <h2>Overview</h2>
-          <ul className="manage-pro-specs__list">
+          <ul>
             <li>
-              <span className="manage-pro-specs__icon">🌐</span>
-              <div>
-                <small>Region</small>
-                <strong>{server.region}</strong>
-              </div>
+              <span>Region</span>
+              <strong>{server.region}</strong>
             </li>
             <li>
-              <span className="manage-pro-specs__icon">💿</span>
-              <div>
-                <small>Operating System</small>
-                <strong>{osDisplay}</strong>
-              </div>
+              <span>OS</span>
+              <strong>{osDisplay}</strong>
             </li>
             <li>
-              <span className="manage-pro-specs__icon">📦</span>
-              <div>
-                <small>Plan</small>
-                <strong>{server.plan}</strong>
-              </div>
+              <span>Plan</span>
+              <strong>{server.plan}</strong>
             </li>
             <li>
-              <span className="manage-pro-specs__icon">⚡</span>
-              <div>
-                <small>Power State</small>
-                <strong className={`text-power text-power--${displayPower}`}>
-                  {displayPowerLabel}
-                </strong>
-              </div>
+              <span>Power</span>
+              <strong className={`text-power text-power--${displayPower}`}>{displayPowerLabel}</strong>
             </li>
           </ul>
-          <Link href="/client/support" className="manage-pro-support">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18">
-              <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
-            </svg>
+          <Link href="/client/support" className="cm-support">
             Need help? Contact Support
           </Link>
         </aside>

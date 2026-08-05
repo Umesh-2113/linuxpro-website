@@ -774,11 +774,20 @@
   border-top: 1px solid var(--border);
 }
 
-/* Client WhatsApp — stack above any chat */
+/* Client WhatsApp — keep clear of server controls */
 .client-layout--ocean .ol-whatsapp-float {
   bottom: 24px;
   right: 24px;
-  z-index: 900;
+  z-index: 40;
+}
+
+.client-layout--ocean:has(.cm-page) .ol-whatsapp-float,
+.client-layout--ocean:has(.cs-page) .ol-whatsapp-float {
+  bottom: 18px;
+  right: 18px;
+  opacity: 0.92;
+  transform: scale(0.92);
+  transform-origin: bottom right;
 }
 
 /* Mobile */

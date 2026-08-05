@@ -176,7 +176,6 @@ html {
 .testimonial-card,
 .why-us__card,
 .order-card,
-.servers-pro-card,
 .admin-panel,
 .admin-stock__form-panel,
 .admin-stock__list-panel,
@@ -198,8 +197,7 @@ html {
 .stock-card:hover,
 .feature-card:hover,
 .testimonial-card:hover,
-.order-card:hover,
-.servers-pro-card:hover {
+.order-card:hover {
   transform: translateY(-10px) rotateX(4deg) scale(1.02);
   box-shadow: var(--depth-3);
 }
