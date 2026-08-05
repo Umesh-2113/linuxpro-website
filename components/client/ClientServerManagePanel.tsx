@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { getUser } from "@/lib/auth";
+import { apiPost } from "@/lib/api-client";
 import { CredentialRow } from "@/components/client/ServerCredentials";
 import {
   formatServerExpiry,
@@ -61,6 +62,17 @@ function ReinstallIcon() {
   );
 }
 
+function SyncIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18" aria-hidden>
+      <path d="M21 12a9 9 0 01-9 9 9.75 9.75 0 01-6.74-2.74L3 16" />
+      <path d="M3 21v-5h5" />
+      <path d="M3 12a9 9 0 019-9 9.75 9.75 0 016.74 2.74L21 8" />
+      <path d="M16 3h5v5" />
+    </svg>
+  );
+}
+
 const actionIcons: Record<ServerActionType, React.ReactNode> = {
   start: <StartIcon />,
   stop: <StopIcon />,
@@ -76,6 +88,7 @@ export function ClientServerManagePanel({ serverId }: Props) {
   const [toast, setToast] = useState("");
   const [busyAction, setBusyAction] = useState<ServerActionType | null>(null);
   const [reinstallPhase, setReinstallPhase] = useState(0);
+  const [syncBusy, setSyncBusy] = useState(false);
 
   const load = useCallback(() => {
     const user = getUser();
@@ -175,6 +188,29 @@ export function ClientServerManagePanel({ serverId }: Props) {
         setToast(err instanceof Error ? err.message : "Action failed. Try again.");
       } finally {
         setBusyAction(null);
+      }
+    })();
+  };
+
+  const handleSync = () => {
+    void (async () => {
+      if (!server || syncBusy || busyAction) return;
+      const user = getUser();
+      if (!user) return;
+      setSyncBusy(true);
+      try {
+        const result = await apiPost<{ server: UserServer; message: string }>(
+          `/api/servers/${server.id}/sync`,
+          {}
+        );
+        await fetchServers(user.email);
+        window.dispatchEvent(new Event("servers-updated"));
+        load();
+        setToast(result.message || "Synced from HostHeaven.");
+      } catch (err) {
+        setToast(err instanceof Error ? err.message : "Sync failed.");
+      } finally {
+        setSyncBusy(false);
       }
     })();
   };
@@ -353,63 +389,92 @@ export function ClientServerManagePanel({ serverId }: Props) {
         <button type="button" className="cm-back" onClick={() => router.push("/client/servers")}>
           ← All Servers
         </button>
-        <span className={`cm-pill cm-pill--${displayPower}`}>
-          {displayPowerLabel} · {displayAccountStatus}
-        </span>
+        <div className="cm-top__right">
+          <span className={`cm-pill cm-pill--${displayPower}`}>
+            {displayPowerLabel} · {displayAccountStatus}
+          </span>
+          <button
+            type="button"
+            className={`cm-sync${syncBusy ? " is-busy" : ""}`}
+            onClick={handleSync}
+            disabled={syncBusy || !!busyAction || expired}
+            title="Pull latest IP, username and password from HostHeaven"
+          >
+            <SyncIcon />
+            {syncBusy ? "Syncing…" : "Sync"}
+          </button>
+        </div>
       </div>
 
-      <header className="cm-head">
-        <div>
+      <header className="cm-board">
+        <div className="cm-board__main">
           <p className="cm-head__tags">
             {stockTypeLabels[server.type]} · {server.region} · #{server.orderId}
           </p>
           <h1>{server.name}</h1>
-          <p className="cm-head__ip">{server.ip}</p>
+          <p className="cm-head__ip">{server.ip || "No IP yet — tap Sync"}</p>
+          <dl className="cm-facts">
+            <div>
+              <dt>OS</dt>
+              <dd>{osDisplay}</dd>
+            </div>
+            <div>
+              <dt>Plan</dt>
+              <dd>{server.plan}</dd>
+            </div>
+            <div>
+              <dt>{expired ? "Expired" : "Expires"}</dt>
+              <dd>{formatServerExpiry(expiresAt)}</dd>
+            </div>
+          </dl>
         </div>
-        <dl className="cm-facts">
-          <div>
-            <dt>OS</dt>
-            <dd>{osDisplay}</dd>
+
+        <div className="cm-board__side">
+          <div className="cm-term">
+            <div className="cm-term__bar">
+              <span />
+              <span />
+              <span />
+              <strong>credentials</strong>
+            </div>
+            <div className="server-creds server-creds--term">
+              <CredentialRow label="IP" value={server.ip} />
+              {server.type === "proxy" && server.port ? (
+                <CredentialRow label="Port" value={server.port} />
+              ) : null}
+              <CredentialRow label="User" value={server.username} />
+              <CredentialRow label="Pass" value={server.password} secret />
+            </div>
           </div>
-          <div>
-            <dt>Plan</dt>
-            <dd>{server.plan}</dd>
-          </div>
-          <div>
-            <dt>{expired ? "Expired" : "Expires"}</dt>
-            <dd>{formatServerExpiry(expiresAt)}</dd>
-          </div>
-        </dl>
+        </div>
       </header>
 
-      <section className="cm-panel">
+      <section className="cm-panel cm-panel--actions">
         <div className="cm-panel__head">
-          <h2>Login credentials</h2>
-          <span>Use these to connect via RDP / SSH</span>
-        </div>
-        <div className="server-creds">
-          <CredentialRow label="IP Address" value={server.ip} />
-          {server.type === "proxy" && server.port ? (
-            <CredentialRow label="Port" value={server.port} />
-          ) : null}
-          <CredentialRow label="Username" value={server.username} />
-          <CredentialRow label="Password" value={server.password} secret />
-        </div>
-      </section>
-
-      <section className="cm-panel">
-        <div className="cm-panel__head">
-          <h2>Power &amp; OS</h2>
+          <h2>Controls</h2>
           <span>
             {expired
-              ? "Controls locked — plan expired"
-              : server.provider === "hostheaven"
-                ? "Runs instantly via API"
-                : "API or admin queue"}
+              ? "Locked — plan expired"
+              : "Start / Stop / Reinstall · Sync pulls live password"}
           </span>
         </div>
 
         <div className="cm-actions">
+          <button
+            type="button"
+            className={`cm-btn cm-btn--sync${syncBusy ? " is-busy" : ""}`}
+            onClick={handleSync}
+            disabled={syncBusy || !!busyAction || expired}
+          >
+            <span className={`cm-btn__icon${syncBusy ? " is-spinning" : ""}`}>
+              <SyncIcon />
+            </span>
+            <span className="cm-btn__label">
+              <strong>Sync</strong>
+              <small>{syncBusy ? "Fetching from API…" : "Refresh IP & password"}</small>
+            </span>
+          </button>
+
           {actionItems.map(({ action, pending, pendingLabel }) => {
             const isBusy = busyAction === action;
             return (
@@ -418,9 +483,11 @@ export function ClientServerManagePanel({ serverId }: Props) {
                 type="button"
                 className={`cm-btn cm-btn--${action}${pending || isBusy ? " is-busy" : ""}`}
                 onClick={() => handleAction(action)}
-                disabled={!!pending || isSuspended || expired || !!busyAction}
+                disabled={!!pending || isSuspended || expired || !!busyAction || syncBusy}
               >
-                <span className="cm-btn__icon">{actionIcons[action]}</span>
+                <span className={`cm-btn__icon${isBusy ? " is-spinning" : ""}`}>
+                  {actionIcons[action]}
+                </span>
                 <span className="cm-btn__label">
                   <strong>{serverActionLabels[action]}</strong>
                   <small>
