@@ -1,10 +1,30 @@
-/**
- * One-shot: import OceanLinux products into LinuxPro Mongo stock.
- * Run on VPS: node scripts/import-oceanlinux-stock.mjs
- * Or via tsx after build uses compiled path — this uses fetch to local admin? 
- * Better: use mongoc + OL API directly in plain JS for VPS.
- */
+import { readFileSync, existsSync } from "fs";
 import { MongoClient } from "mongodb";
+
+function loadEnvFile(path) {
+  if (!existsSync(path)) return;
+  const text = readFileSync(path, "utf8");
+  for (const line of text.split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) continue;
+    const eq = trimmed.indexOf("=");
+    if (eq <= 0) continue;
+    const key = trimmed.slice(0, eq).trim();
+    let val = trimmed.slice(eq + 1).trim();
+    if (
+      (val.startsWith('"') && val.endsWith('"')) ||
+      (val.startsWith("'") && val.endsWith("'"))
+    ) {
+      val = val.slice(1, -1);
+    }
+    if (!(key in process.env) || !process.env[key]) {
+      process.env[key] = val;
+    }
+  }
+}
+
+loadEnvFile(new URL("../.env", import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, "$1"));
+loadEnvFile("/var/www/linuxpro-website/.env");
 
 const OL_BASE = (process.env.OCEANLINUX_API_BASE_URL || "https://oceanlinux.com").replace(
   /\/$/,
