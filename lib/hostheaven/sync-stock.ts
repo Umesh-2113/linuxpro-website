@@ -2,7 +2,7 @@ import {
   dbGetStock,
   dbUpdateStockItem,
 } from "@/lib/db/stock";
-import { getAllocatedIpSet } from "@/lib/hostheaven/allocated";
+import { getAllocatedIpSet, getAllocatedVmIdSet } from "@/lib/hostheaven/allocated";
 import {
   hostHeavenListVms,
   isHostHeavenConfigured,
@@ -19,10 +19,15 @@ export type HostHeavenStockSyncResult = {
   availableIps: number;
 };
 
-function isFreeVm(vm: HostHeavenVm, usedIps: Set<string>): boolean {
+function isFreeVm(
+  vm: HostHeavenVm,
+  usedIps: Set<string>,
+  usedVmIds: Set<number>
+): boolean {
   const status = (vm.status ?? "ACTIVE").toUpperCase();
   if (status !== "ACTIVE") return false;
   if (vm.locked || vm.assigned) return false;
+  if (usedVmIds.has(vm.id)) return false;
   const ip = vm.ips[0];
   if (!ip) return false;
   return !usedIps.has(ip.toLowerCase());
@@ -62,9 +67,12 @@ export async function syncHostHeavenStockToDb(
     }
 
     try {
-      const usedIps = await getAllocatedIpSet();
+      const [usedIps, usedVmIds] = await Promise.all([
+        getAllocatedIpSet(),
+        getAllocatedVmIdSet(),
+      ]);
       const allVms = await hostHeavenListVms();
-      const free = allVms.filter((vm) => isFreeVm(vm, usedIps));
+      const free = allVms.filter((vm) => isFreeVm(vm, usedIps, usedVmIds));
       const stock = await dbGetStock();
       let updated = 0;
       const matchedSeries = new Set<string>();

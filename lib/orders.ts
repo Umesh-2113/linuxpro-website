@@ -144,14 +144,10 @@ export async function createOrder(data: {
   selectedRamGb?: number;
   promoCode?: string;
 }): Promise<Order | null> {
-  try {
-    const order = await apiPost<Order>("/api/orders", data);
-    cache = [order, ...cache];
-    emitUpdate();
-    return order;
-  } catch {
-    return null;
-  }
+  const order = await apiPost<Order>("/api/orders", data);
+  cache = [order, ...cache];
+  emitUpdate();
+  return order;
 }
 
 export async function updateOrder(

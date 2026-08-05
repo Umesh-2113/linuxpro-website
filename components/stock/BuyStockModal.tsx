@@ -138,16 +138,27 @@ export function BuyStockModal({ item, onClose, onSuccess }: Props) {
 
     setLoading(true);
 
-    const order = await createOrder({
-      stockId: item.id,
-      quantity: qty,
-      userName: user.name,
-      userEmail: user.email,
-      customerPhone: phoneDigits,
-      paymentGateway: paymentMethod,
-      selectedRamGb: item.type !== "proxy" ? selectedRamGb : undefined,
-      promoCode: appliedPromo?.code,
-    });
+    let order;
+    try {
+      order = await createOrder({
+        stockId: item.id,
+        quantity: qty,
+        userName: user.name,
+        userEmail: user.email,
+        customerPhone: phoneDigits,
+        paymentGateway: paymentMethod,
+        selectedRamGb: item.type !== "proxy" ? selectedRamGb : undefined,
+        promoCode: appliedPromo?.code,
+      });
+    } catch (err) {
+      setLoading(false);
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Not enough stock available. Please try a lower quantity."
+      );
+      return;
+    }
 
     if (!order) {
       setLoading(false);

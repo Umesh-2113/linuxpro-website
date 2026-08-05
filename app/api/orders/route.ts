@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
 import { dbCreateOrder, dbGetOrders, dbGetOrdersByUser } from "@/lib/db/orders";
+import { dbGetStockById } from "@/lib/db/stock";
+import { listAvailableHostHeavenVms } from "@/lib/hostheaven/provision";
+import { isHostHeavenConfigured } from "@/lib/hostheaven/client";
+import { isHostHeavenProvider } from "@/lib/stock-providers";
 import { requireClientSession, requireDataAccess } from "@/lib/server-session";
 
 export async function GET(req: Request) {
@@ -31,6 +35,29 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json();
+    const stockId = String(body.stockId ?? "");
+    const quantity = Math.max(1, Number(body.quantity) || 1);
+    const stock = stockId ? await dbGetStockById(stockId) : null;
+
+    if (
+      stock &&
+      isHostHeavenConfigured() &&
+      isHostHeavenProvider(stock.provider)
+    ) {
+      const available = await listAvailableHostHeavenVms(stock.series);
+      if (available.length < quantity) {
+        return NextResponse.json(
+          {
+            error:
+              available.length === 0
+                ? `No free HostHeaven IP left for ${stock.series}. Sync stock or add Backup Stock.`
+                : `Only ${available.length} free IP(s) left for ${stock.series}.`,
+          },
+          { status: 400 }
+        );
+      }
+    }
+
     const order = await dbCreateOrder({
       ...body,
       userEmail: auth.email,

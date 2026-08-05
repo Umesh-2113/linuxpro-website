@@ -324,6 +324,12 @@ export async function autoDeliverPaidOrder(orderId: string): Promise<{
         : `Auto-delivered from HostHeaven: ${units.map((u) => u.ip).join(", ")}`,
   });
 
+  // Keep stock qty in sync immediately after delivery (don't fire-and-forget).
+  const { syncHostHeavenStockToDb } = await import("@/lib/hostheaven/sync-stock");
+  await syncHostHeavenStockToDb({ force: true }).catch((error) => {
+    console.error("[autoDeliver] sync after deliver", error);
+  });
+
   return {
     order: await dbGetOrderById(orderId),
     delivered: true,

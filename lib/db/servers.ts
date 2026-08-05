@@ -125,7 +125,10 @@ export async function dbCreateServersFromOrder(
   }
 
   if (created.length > 0) {
-    await col.insertMany(created);
+    const { withMongoWriteRetry } = await import("@/lib/mongodb");
+    await withMongoWriteRetry(async () => {
+      await col.insertMany(created);
+    });
   }
   return created.map(normalizeServer);
 }

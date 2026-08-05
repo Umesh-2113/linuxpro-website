@@ -81,6 +81,23 @@ export async function dbGetOrderById(id: string): Promise<Order | null> {
 async function applyStockDeduction(order: Order): Promise<void> {
   const stock = await dbGetStockById(order.stockId);
   if (!stock) return;
+
+  // HostHeaven VPS + Linux rows share the same free VM pool for a series.
+  if (stock.provider === "hostheaven") {
+    const { dbGetStock } = await import("@/lib/db/stock");
+    const siblings = (await dbGetStock()).filter(
+      (item) =>
+        item.provider === "hostheaven" &&
+        item.series === order.series
+    );
+    for (const item of siblings) {
+      await dbUpdateStockItem(item.id, {
+        quantity: Math.max(0, item.quantity - order.quantity),
+      });
+    }
+    return;
+  }
+
   await dbUpdateStockItem(order.stockId, {
     quantity: Math.max(0, stock.quantity - order.quantity),
   });
@@ -168,7 +185,10 @@ export async function dbCreateOrder(data: {
     updatedAt: now,
   };
 
-  await (await collection()).insertOne(order);
+  const { withMongoWriteRetry } = await import("@/lib/mongodb");
+  await withMongoWriteRetry(async () => {
+    await (await collection()).insertOne(order);
+  });
   return order;
 }
 
@@ -211,7 +231,10 @@ export async function dbUpdateOrder(
     await dbDeleteServersByOrder(updated.id);
   }
 
-  await (await collection()).updateOne({ id }, { $set: updated });
+  const { withMongoWriteRetry } = await import("@/lib/mongodb");
+  await withMongoWriteRetry(async () => {
+    await (await collection()).updateOne({ id }, { $set: updated });
+  });
   return updated;
 }
 

@@ -326,14 +326,17 @@ async function listResellerVms(): Promise<HostHeavenVm[]> {
 }
 
 async function listUserVms(): Promise<HostHeavenVm[]> {
-  const data = await hostHeavenRequest<{ orders?: UserOrderOverview[] }>(
+  const data = await hostHeavenRequest<unknown>(
     "/api/users/orders/overview?page=0&size=500&sortBy=createdAt&sortDir=desc",
     { method: "GET" },
     true,
     false
   );
 
-  return (data.orders ?? [])
+  // HostHeaven sometimes returns a bare array, sometimes { orders: [...] }.
+  const rows = unwrapVmList(data) as UserOrderOverview[];
+
+  return rows
     .filter((order) => (order.dbStatus ?? "ACTIVE").toUpperCase() === "ACTIVE")
     .map(normalizeUserOrderVm)
     .filter((vm): vm is HostHeavenVm => vm !== null);
