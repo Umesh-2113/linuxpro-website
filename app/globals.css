@@ -281,12 +281,13 @@ ul { list-style: none; }
 .nav__logo {
   display: flex;
   align-items: center;
-  gap: 11px;
+  gap: 12px;
   font-size: 1.35rem;
   font-weight: 800;
   color: var(--accent);
   flex-shrink: 0;
   transition: transform 0.25s ease, opacity 0.25s ease;
+  min-width: 0;
 }
 
 .nav__logo:hover {
@@ -304,9 +305,9 @@ ul { list-style: none; }
 .nav__logo-mark::after {
   content: "";
   position: absolute;
-  inset: -4px;
-  border-radius: 16px;
-  background: radial-gradient(circle, rgba(0, 208, 132, 0.22) 0%, transparent 70%);
+  inset: -5px;
+  border-radius: 18px;
+  background: radial-gradient(circle, rgba(0, 208, 132, 0.2) 0%, transparent 70%);
   opacity: 0;
   transition: opacity 0.25s ease;
   pointer-events: none;
@@ -317,39 +318,49 @@ ul { list-style: none; }
 }
 
 .nav__logo-icon {
-  width: 40px;
-  height: 40px;
+  width: 42px;
+  height: 42px;
   flex-shrink: 0;
-  filter: drop-shadow(0 4px 14px rgba(0, 208, 132, 0.35));
+  filter: drop-shadow(0 6px 16px rgba(0, 208, 132, 0.28));
   transition: filter 0.25s ease, transform 0.25s ease;
 }
 
 .nav__logo:hover .nav__logo-icon {
-  filter: drop-shadow(0 6px 20px rgba(0, 208, 132, 0.5));
+  filter: drop-shadow(0 8px 22px rgba(0, 208, 132, 0.42));
   transform: scale(1.03);
+}
+
+.nav__logo-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
 }
 
 .nav__logo-text {
   font-weight: 800;
-  font-size: 1.2rem;
-  letter-spacing: -0.03em;
+  font-size: 1.18rem;
+  letter-spacing: -0.04em;
   line-height: 1;
 }
 
 .nav__logo-pro {
-  background: linear-gradient(120deg, #00f0a0 0%, #00D084 45%, #00a86b 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-  color: transparent;
+  color: var(--primary);
   font-weight: 900;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.03em;
+}
+
+.nav__logo-tag {
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  line-height: 1;
 }
 
 [data-theme="light"] .nav__logo-pro {
-  background: linear-gradient(120deg, #00c97a 0%, #00b86d 50%, #008f56 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
+  color: var(--primary);
 }
 
 .nav__menu {

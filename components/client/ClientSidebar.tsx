@@ -136,7 +136,7 @@ export function ClientSidebar({
             <path d="M3 12h18M3 6h18M3 18h18" />
           </svg>
         </button>
-        <Logo />
+        <Logo className="ocean-mobilebar__logo" />
         <ThemeToggle className="sidebar-mobilebar__theme" />
       </div>
       {open && <div className="sidebar-backdrop" onClick={() => setOpen(false)} aria-hidden />}
@@ -150,8 +150,7 @@ export function ClientSidebar({
           ✕
         </button>
         <div className="client-sidebar__brand ocean-sidebar__brand">
-          <Logo />
-          <span className="ocean-sidebar__tag">Client Panel</span>
+          <Logo tag="Client Panel" />
         </div>
         <div className="client-sidebar__user ocean-sidebar__user">
           <div className="client-sidebar__avatar">

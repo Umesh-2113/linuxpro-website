@@ -3,73 +3,66 @@
 import Link from "next/link";
 import { useId } from "react";
 
-export function Logo({ className }: { className?: string }) {
+type Props = {
+  className?: string;
+  tag?: string;
+};
+
+export function Logo({ className, tag }: Props) {
   const uid = useId().replace(/:/g, "");
-  const grad = `lp-grad-${uid}`;
-  const glow = `lp-glow-${uid}`;
-  const shine = `lp-shine-${uid}`;
-  const ring = `lp-ring-${uid}`;
+  const grad = `lpMark-${uid}`;
+  const ring = `lpRing-${uid}`;
 
   return (
     <Link href="/" className={`nav__logo ${className ?? ""}`}>
       <span className="nav__logo-mark" aria-hidden="true">
-        <svg className="nav__logo-icon" viewBox="0 0 44 44" fill="none">
+        <svg className="nav__logo-icon" viewBox="0 0 48 48" fill="none">
           <defs>
-            <linearGradient id={grad} x1="6" y1="4" x2="38" y2="40" gradientUnits="userSpaceOnUse">
-              <stop stopColor="#00f0a0" />
-              <stop offset="0.45" stopColor="#00D084" />
-              <stop offset="1" stopColor="#007a52" />
+            <linearGradient id={grad} x1="12" y1="8" x2="40" y2="40" gradientUnits="userSpaceOnUse">
+              <stop stopColor="#5CFFC0" />
+              <stop offset="0.55" stopColor="#00D084" />
+              <stop offset="1" stopColor="#00A86B" />
             </linearGradient>
-            <linearGradient id={glow} x1="22" y1="0" x2="22" y2="44" gradientUnits="userSpaceOnUse">
-              <stop stopColor="#ffffff" stopOpacity="0.45" />
-              <stop offset="0.55" stopColor="#ffffff" stopOpacity="0" />
-            </linearGradient>
-            <radialGradient id={shine} cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(34 10) rotate(130) scale(28)">
-              <stop stopColor="#ffffff" stopOpacity="0.5" />
-              <stop offset="1" stopColor="#ffffff" stopOpacity="0" />
-            </radialGradient>
-            <linearGradient id={ring} x1="4" y1="4" x2="40" y2="40" gradientUnits="userSpaceOnUse">
-              <stop stopColor="#7dffd8" stopOpacity="0.9" />
+            <linearGradient id={ring} x1="4" y1="4" x2="44" y2="44" gradientUnits="userSpaceOnUse">
+              <stop stopColor="#9AFFD8" stopOpacity="0.85" />
               <stop offset="1" stopColor="#00D084" stopOpacity="0.2" />
             </linearGradient>
           </defs>
 
-          <rect x="1" y="1" width="42" height="42" rx="13" fill={`url(#${grad})`} />
-          <rect x="1" y="1" width="42" height="42" rx="13" fill={`url(#${glow})`} />
-          <rect x="1" y="1" width="42" height="42" rx="13" fill={`url(#${shine})`} />
+          <rect x="2" y="2" width="44" height="44" rx="14" fill="#070D16" />
           <rect
-            x="1.5"
-            y="1.5"
-            width="41"
-            height="41"
-            rx="12.5"
-            fill="none"
+            x="2.75"
+            y="2.75"
+            width="42.5"
+            height="42.5"
+            rx="13.25"
             stroke={`url(#${ring})`}
-            strokeWidth="1"
+            strokeWidth="1.5"
+            fill="none"
           />
 
-          <rect x="9" y="9" width="26" height="26" rx="8" fill="var(--logo-panel, #07111f)" opacity="0.92" />
-
+          {/* L */}
           <path
-            d="M15.5 17.5 L19 22 L15.5 26.5"
-            stroke="var(--logo-accent, #00f0a0)"
-            strokeWidth="2.4"
-            strokeLinecap="round"
-            strokeLinejoin="round"
+            d="M12 12.5h5.4v18.2H28.5V36H12V12.5Z"
+            fill="#F7FFFB"
           />
 
-          <rect x="21" y="16" width="11" height="2.6" rx="1.3" fill="var(--logo-lines, #ffffff)" opacity="0.92" />
-          <rect x="21" y="20.7" width="9" height="2.6" rx="1.3" fill="var(--logo-lines, #ffffff)" opacity="0.65" />
-          <rect x="21" y="25.4" width="7" height="2.6" rx="1.3" fill="var(--logo-lines, #ffffff)" opacity="0.4" />
+          {/* P */}
+          <path
+            d="M23.2 12.5H32.2C37.1 12.5 40.5 15.7 40.5 20.5C40.5 25.3 37.1 28.5 32.2 28.5H28.6V36H23.2V12.5ZM28.6 17.1V23.9H32C34.1 23.9 35.3 22.5 35.3 20.5C35.3 18.5 34.1 17.1 32 17.1H28.6Z"
+            fill={`url(#${grad})`}
+          />
 
-          <circle cx="31.5" cy="31.5" r="3.5" fill="#00D084" opacity="0.2" />
-          <circle cx="31.5" cy="31.5" r="2" fill="#00f0a0" />
-          <circle cx="31.5" cy="31.5" r="5" stroke="#00f0a0" strokeOpacity="0.35" strokeWidth="1" />
+          {/* Signal dot */}
+          <circle cx="38.2" cy="35.2" r="2.4" fill={`url(#${grad})`} />
         </svg>
       </span>
 
-      <span className="nav__logo-text">
-        Linux<span className="nav__logo-pro">Pro</span>
+      <span className="nav__logo-copy">
+        <span className="nav__logo-text">
+          Linux<span className="nav__logo-pro">Pro</span>
+        </span>
+        {tag ? <span className="nav__logo-tag">{tag}</span> : null}
       </span>
     </Link>
   );

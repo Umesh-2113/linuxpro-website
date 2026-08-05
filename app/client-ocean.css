@@ -161,17 +161,32 @@
 }
 
 .ocean-sidebar__brand {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
+  display: block;
+  padding: 0 4px;
 }
 
-.ocean-sidebar__tag {
-  font-size: 0.68rem;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--text-muted);
-  padding-left: 8px;
+.ocean-sidebar__brand .nav__logo {
+  width: 100%;
+}
+
+.ocean-sidebar__brand .nav__logo-icon {
+  width: 40px;
+  height: 40px;
+}
+
+.ocean-mobilebar__logo .nav__logo-icon {
+  width: 34px;
+  height: 34px;
+}
+
+.ocean-mobilebar__logo .nav__logo-text {
+  font-size: 1.05rem;
+}
+
+@media (max-width: 380px) {
+  .ocean-mobilebar__logo .nav__logo-text {
+    font-size: 0.95rem;
+  }
 }
 
 .ocean-sidebar__user span {
