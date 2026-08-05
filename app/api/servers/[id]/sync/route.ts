@@ -23,7 +23,7 @@ export async function POST(_req: Request, { params }: Params) {
 
     if (server.provider && server.provider !== "hostheaven" && !server.providerVmId) {
       return NextResponse.json(
-        { error: "This server is not linked to HostHeaven API." },
+        { error: "This server is not linked to the provider API." },
         { status: 400 }
       );
     }
@@ -31,9 +31,11 @@ export async function POST(_req: Request, { params }: Params) {
     const result = await syncServerFromHostHeaven(id);
     return NextResponse.json(result);
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Failed to sync server from HostHeaven.";
-    console.error("[API servers sync]", message);
+    const raw =
+      error instanceof Error ? error.message : "Failed to sync server credentials.";
+    // Never expose supplier brand name to customers.
+    const message = raw.replace(/HostHeaven/gi, "provider");
+    console.error("[API servers sync]", raw);
     return NextResponse.json({ error: message }, { status: 400 });
   }
 }

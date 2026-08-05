@@ -206,9 +206,10 @@ export function ClientServerManagePanel({ serverId }: Props) {
         await fetchServers(user.email);
         window.dispatchEvent(new Event("servers-updated"));
         load();
-        setToast(result.message || "Synced from HostHeaven.");
+        setToast(result.message || "Synced — credentials updated.");
       } catch (err) {
-        setToast(err instanceof Error ? err.message : "Sync failed.");
+        const raw = err instanceof Error ? err.message : "Sync failed.";
+        setToast(raw.replace(/HostHeaven/gi, "provider"));
       } finally {
         setSyncBusy(false);
       }

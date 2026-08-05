@@ -45,7 +45,7 @@ export async function syncServerFromHostHeaven(
 
   if (!vmId) {
     if (!server.ip?.trim()) {
-      throw new Error("No HostHeaven VM linked and server has no IP to look up.");
+      throw new Error("No API VM linked and server has no IP to look up.");
     }
     vmId = await hostHeavenFindVmIdByIp(server.ip);
   }
@@ -91,6 +91,6 @@ export async function syncServerFromHostHeaven(
 
   return {
     server: updated,
-    message: "Synced from HostHeaven — credentials updated.",
+    message: "Synced — credentials updated.",
   };
 }
