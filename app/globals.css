@@ -9248,6 +9248,64 @@ section { padding: 100px 0; }
   font-size: 1.1rem;
 }
 
+.servers-pro-filters {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 6px;
+  margin-bottom: 14px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+}
+
+.servers-pro-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s, border-color 0.2s;
+}
+
+.servers-pro-filter svg {
+  opacity: 0.85;
+}
+
+.servers-pro-filter__count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.5rem;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  background: rgba(255, 255, 255, 0.06);
+  color: inherit;
+}
+
+.servers-pro-filter:hover {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.servers-pro-filter.is-active {
+  color: var(--primary);
+  background: rgba(0, 208, 132, 0.12);
+  border-color: rgba(0, 208, 132, 0.35);
+}
+
+.servers-pro-filter.is-active .servers-pro-filter__count {
+  background: rgba(0, 208, 132, 0.18);
+}
+
 .servers-pro-toolbar {
   display: flex;
   align-items: center;

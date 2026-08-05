@@ -12,10 +12,16 @@ import {
 } from "@/lib/user-servers";
 import { stockTypeLabels } from "@/lib/stock";
 
+type StatusFilter = "all" | "active" | "expired";
+
 function powerLabel(state: UserServer["powerState"]) {
   if (state === "running") return "Online";
   if (state === "stopped") return "Offline";
   return "Unknown";
+}
+
+function serverIsExpired(server: UserServer): boolean {
+  return isServerExpired(resolveServerExpiresAt(server));
 }
 
 function ServerCard({ server }: { server: UserServer }) {
@@ -77,6 +83,7 @@ function ServerCard({ server }: { server: UserServer }) {
 export function ClientServersPanel() {
   const [servers, setServers] = useState<UserServer[]>([]);
   const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
 
   const load = useCallback(() => {
     const user = getUser();
@@ -93,10 +100,27 @@ export function ClientServersPanel() {
     };
   }, [load]);
 
+  const counts = useMemo(() => {
+    let active = 0;
+    let expired = 0;
+    for (const s of servers) {
+      if (serverIsExpired(s)) expired += 1;
+      else active += 1;
+    }
+    return { all: servers.length, active, expired };
+  }, [servers]);
+
   const filteredServers = useMemo(() => {
+    let list = servers;
+    if (statusFilter === "active") {
+      list = list.filter((s) => !serverIsExpired(s));
+    } else if (statusFilter === "expired") {
+      list = list.filter((s) => serverIsExpired(s));
+    }
+
     const q = search.trim().toLowerCase();
-    if (!q) return servers;
-    return servers.filter(
+    if (!q) return list;
+    return list.filter(
       (s) =>
         s.name.toLowerCase().includes(q) ||
         s.ip.toLowerCase().includes(q) ||
@@ -106,7 +130,7 @@ export function ClientServersPanel() {
         (s.os && s.os.toLowerCase().includes(q)) ||
         stockTypeLabels[s.type].toLowerCase().includes(q)
     );
-  }, [servers, search]);
+  }, [servers, search, statusFilter]);
 
   const stats = useMemo(() => {
     const online = servers.filter((s) => s.powerState === "running").length;
@@ -173,6 +197,51 @@ export function ClientServersPanel() {
         </section>
       ) : (
         <>
+          <div className="servers-pro-filters" role="tablist" aria-label="Server status">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={statusFilter === "all"}
+              className={`servers-pro-filter${statusFilter === "all" ? " is-active" : ""}`}
+              onClick={() => setStatusFilter("all")}
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
+                <rect x="2" y="3" width="20" height="14" rx="2" />
+                <path d="M8 21h8M12 17v4" />
+              </svg>
+              All
+              <span className="servers-pro-filter__count">{counts.all}</span>
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={statusFilter === "active"}
+              className={`servers-pro-filter${statusFilter === "active" ? " is-active" : ""}`}
+              onClick={() => setStatusFilter("active")}
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
+                <circle cx="12" cy="12" r="9" />
+                <path d="M8 12l2.5 2.5L16 9" />
+              </svg>
+              Active
+              <span className="servers-pro-filter__count">{counts.active}</span>
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={statusFilter === "expired"}
+              className={`servers-pro-filter${statusFilter === "expired" ? " is-active" : ""}`}
+              onClick={() => setStatusFilter("expired")}
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
+                <rect x="3" y="5" width="18" height="16" rx="2" />
+                <path d="M8 3v4M16 3v4M3 11h18" />
+              </svg>
+              Expired
+              <span className="servers-pro-filter__count">{counts.expired}</span>
+            </button>
+          </div>
+
           <div className="servers-pro-toolbar glass">
             <div className="servers-pro-search">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18">
@@ -205,10 +274,29 @@ export function ClientServersPanel() {
 
           {filteredServers.length === 0 ? (
             <section className="servers-pro-empty glass servers-pro-empty--inline">
-              <h3>No servers match your search</h3>
-              <p>Try a different IP, name, or order ID.</p>
-              <button type="button" className="btn btn--outline btn--sm" onClick={() => setSearch("")}>
-                Clear Search
+              <h3>
+                {statusFilter === "expired"
+                  ? "No expired servers"
+                  : statusFilter === "active"
+                    ? "No active servers"
+                    : "No servers match your search"}
+              </h3>
+              <p>
+                {search
+                  ? "Try a different IP, name, or order ID."
+                  : statusFilter === "expired"
+                    ? "None of your servers have expired yet."
+                    : "Switch filter or buy a new plan."}
+              </p>
+              <button
+                type="button"
+                className="btn btn--outline btn--sm"
+                onClick={() => {
+                  setSearch("");
+                  setStatusFilter("all");
+                }}
+              >
+                Show All
               </button>
             </section>
           ) : (
