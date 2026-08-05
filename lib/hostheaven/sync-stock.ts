@@ -1,14 +1,4 @@
-import {
-  dbGetStock,
-  dbUpdateStockItem,
-} from "@/lib/db/stock";
-import { getAllocatedIpSet, getAllocatedVmIdSet } from "@/lib/hostheaven/allocated";
-import {
-  hostHeavenListVms,
-  isHostHeavenConfigured,
-  type HostHeavenVm,
-} from "@/lib/hostheaven/client";
-import { ipMatchesSeries } from "@/lib/hostheaven/series";
+import { isHostHeavenConfigured } from "@/lib/hostheaven/client";
 
 export type HostHeavenStockSyncResult = {
   ok: boolean;
@@ -19,32 +9,17 @@ export type HostHeavenStockSyncResult = {
   availableIps: number;
 };
 
-function isFreeVm(
-  vm: HostHeavenVm,
-  usedIps: Set<string>,
-  usedVmIds: Set<number>
-): boolean {
-  const status = (vm.status ?? "ACTIVE").toUpperCase();
-  if (status !== "ACTIVE") return false;
-  if (vm.locked || vm.assigned) return false;
-  if (usedVmIds.has(vm.id)) return false;
-  const ip = vm.ips[0];
-  if (!ip) return false;
-  return !usedIps.has(ip.toLowerCase());
-}
-
-let lastSyncAt = 0;
-let inflight: Promise<HostHeavenStockSyncResult> | null = null;
-
-/** Sync free HostHeaven VM counts onto existing hostheaven stock rows only. */
+/**
+ * Stock quantity sync is OFF while order delivery is manual.
+ * Admin controls stock qty; HostHeaven connection is still used for status checks.
+ */
 export async function syncHostHeavenStockToDb(
-  options?: { force?: boolean; minIntervalMs?: number }
+  _options?: { force?: boolean; minIntervalMs?: number }
 ): Promise<HostHeavenStockSyncResult> {
-  const minInterval = options?.minIntervalMs ?? 60_000;
-  if (!options?.force && Date.now() - lastSyncAt < minInterval && !inflight) {
+  if (!isHostHeavenConfigured()) {
     return {
-      ok: true,
-      message: "Skipped (recently synced).",
+      ok: false,
+      message: "HostHeaven is not configured.",
       pools: 0,
       updated: 0,
       created: 0,
@@ -52,74 +27,13 @@ export async function syncHostHeavenStockToDb(
     };
   }
 
-  if (inflight) return inflight;
-
-  inflight = (async () => {
-    if (!isHostHeavenConfigured()) {
-      return {
-        ok: false,
-        message: "HostHeaven is not configured.",
-        pools: 0,
-        updated: 0,
-        created: 0,
-        availableIps: 0,
-      };
-    }
-
-    try {
-      const [usedIps, usedVmIds] = await Promise.all([
-        getAllocatedIpSet(),
-        getAllocatedVmIdSet(),
-      ]);
-      const allVms = await hostHeavenListVms();
-      const free = allVms.filter((vm) => isFreeVm(vm, usedIps, usedVmIds));
-      const stock = await dbGetStock();
-      let updated = 0;
-      const matchedSeries = new Set<string>();
-
-      for (const item of stock) {
-        if (item.provider !== "hostheaven") continue;
-
-        const matching = free.filter(
-          (vm) => vm.ips[0] && ipMatchesSeries(vm.ips[0], item.series)
-        );
-        const nextQty = matching.length;
-        if (nextQty > 0) matchedSeries.add(item.series);
-
-        if (item.quantity !== nextQty) {
-          await dbUpdateStockItem(item.id, {
-            quantity: nextQty,
-            provider: "hostheaven",
-          });
-          updated += 1;
-        }
-      }
-
-      lastSyncAt = Date.now();
-      return {
-        ok: true,
-        message: `Synced HostHeaven stock (${free.length} free IPs, ${matchedSeries.size} series with stock).`,
-        pools: matchedSeries.size,
-        updated,
-        created: 0,
-        availableIps: free.length,
-      };
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "HostHeaven stock sync failed.";
-      console.error("[syncHostHeavenStock]", message);
-      return {
-        ok: false,
-        message,
-        pools: 0,
-        updated: 0,
-        created: 0,
-        availableIps: 0,
-      };
-    } finally {
-      inflight = null;
-    }
-  })();
-
-  return inflight;
+  return {
+    ok: true,
+    message:
+      "Stock quantity sync skipped (manual delivery mode). Set qty in Admin → Stock.",
+    pools: 0,
+    updated: 0,
+    created: 0,
+    availableIps: 0,
+  };
 }

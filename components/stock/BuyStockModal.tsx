@@ -245,7 +245,7 @@ export function BuyStockModal({ item, onClose, onSuccess }: Props) {
             <p className="payment-callback__hint">
               {walletSuccess.delivered
                 ? `IP and password ready${walletSuccess.deliverIp ? ` (${walletSuccess.deliverIp})` : ""}. Open My Servers to view credentials.`
-                : "Payment received. Your IP and password will appear under My Servers automatically when ready."}
+                : "Payment received. Your IP and password will appear under My Servers after admin delivers the order."}
             </p>
             <div className="payment-callback__actions">
               <Link href="/client/orders" className="btn btn--primary">

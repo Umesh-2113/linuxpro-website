@@ -187,7 +187,7 @@ export function ClientDashboard() {
 
           {recentServers.length === 0 ? (
             <div className="client-home-empty">
-              <p>No servers yet. Buy IP stock — IP and password are delivered automatically after payment.</p>
+              <p>No servers yet. Buy IP stock — after payment, admin delivers IP and password to My Servers.</p>
               <Link href="/client/ip-stock" className="btn btn--outline btn--sm">
                 Browse IP Stock
               </Link>

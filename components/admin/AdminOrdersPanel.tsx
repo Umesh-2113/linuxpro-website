@@ -6,7 +6,6 @@ import {
   deliverOrderToCustomer,
   formatOrderDate,
   updateOrderCredentials,
-  autoDeliverOrder,
   fulfillmentStatusLabels,
   getAdminFulfillmentLabel,
   getAdminPaymentLabel,
@@ -74,7 +73,6 @@ export function AdminOrdersPanel() {
   >([{ ip: "", username: "", password: "" }]);
   const [deliverError, setDeliverError] = useState("");
   const [saveSuccess, setSaveSuccess] = useState("");
-  const [autoBusy, setAutoBusy] = useState(false);
   const [serversTick, setServersTick] = useState(0);
   const [refreshBusy, setRefreshBusy] = useState(false);
   const [loadError, setLoadError] = useState("");
@@ -206,31 +204,6 @@ export function AdminOrdersPanel() {
 
   const handleSaveNote = () => {
     void patch({ adminNote });
-  };
-
-  const handleAutoDeliver = async () => {
-    if (!selected) return;
-    setAutoBusy(true);
-    setDeliverError("");
-    setSaveSuccess("");
-    try {
-      const result = await autoDeliverOrder(selected.id);
-      if (result.order) {
-        setSelected(result.order);
-        setAdminNote(result.order.adminNote ?? "");
-      }
-      if (result.delivered) {
-        setSaveSuccess(result.message || "Auto-delivered successfully.");
-        await fetchServers();
-      } else {
-        setDeliverError(result.message || result.order?.adminNote || "No free IP matched.");
-      }
-      load();
-    } catch (err) {
-      setDeliverError(err instanceof Error ? err.message : "Auto-deliver failed.");
-    } finally {
-      setAutoBusy(false);
-    }
   };
 
   const handleDelete = async (id: string) => {
@@ -501,19 +474,6 @@ export function AdminOrdersPanel() {
                   </button>
                   <button
                     type="button"
-                    className="btn btn--primary btn--sm"
-                    disabled={
-                      autoBusy ||
-                      selected.paymentStatus !== "received" ||
-                      selected.fulfillmentStatus === "delivered" ||
-                      selected.fulfillmentStatus === "cancelled"
-                    }
-                    onClick={() => void handleAutoDeliver()}
-                  >
-                    {autoBusy ? "Auto delivering…" : "Auto-deliver from HostHeaven"}
-                  </button>
-                  <button
-                    type="button"
                     className="btn btn--ghost btn--sm"
                     onClick={() => patch({ fulfillmentStatus: "cancelled" })}
                     disabled={selected.fulfillmentStatus === "delivered"}
@@ -521,6 +481,9 @@ export function AdminOrdersPanel() {
                     Cancel Order
                   </button>
                 </div>
+                <p className="admin-panel__note" style={{ marginBottom: 12 }}>
+                  API auto-deliver is OFF. Enter IP, username and password below, then deliver manually.
+                </p>
                 {saveSuccess ? (
                   <p className="admin-panel__note" style={{ marginBottom: 12 }}>
                     {saveSuccess}

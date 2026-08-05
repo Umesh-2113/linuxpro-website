@@ -76,8 +76,8 @@ export function AdminSettingsPanel() {
         <section className="admin-panel glass">
           <h2>HostHeaven VPS API</h2>
           <p className="admin-panel__note">
-            Live VPS/IP stock syncs from HostHeaven automatically. After payment, matching free
-            IPs and passwords are delivered to the customer without manual steps.
+            HostHeaven can sync live free-IP counts for stock display. Order delivery is
+            manual — after payment, admin enters IP, username and password in Orders.
           </p>
 
           {hostHeavenLoading ? (
