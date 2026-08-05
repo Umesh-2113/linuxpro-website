@@ -3,6 +3,7 @@ import { ADMIN_BASE_PATH } from "@/lib/admin";
 export const adminNav = [
   { href: ADMIN_BASE_PATH, label: "Dashboard", icon: "grid" },
   { href: `${ADMIN_BASE_PATH}/stock`, label: "IP Stock", icon: "stock" },
+  { href: `${ADMIN_BASE_PATH}/backup-stock`, label: "Backup Stock", icon: "backup" },
   { href: `${ADMIN_BASE_PATH}/orders`, label: "Orders", icon: "orders" },
   { href: `${ADMIN_BASE_PATH}/manage`, label: "Server Manage", icon: "manage" },
   { href: `${ADMIN_BASE_PATH}/tickets`, label: "Support Tickets", icon: "chat" },

@@ -3593,6 +3593,58 @@ section { padding: 100px 0; }
   margin-bottom: 0;
 }
 
+.admin-backup-forms {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+  margin-bottom: 24px;
+}
+
+.admin-backup-form-body {
+  padding: 0 20px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.admin-backup-form-body .form-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.admin-backup-form-body .form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.875rem;
+  color: var(--text-muted);
+}
+
+.admin-backup-form-body .form-field input,
+.admin-backup-form-body .form-field select,
+.admin-backup-form-body .form-field textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg-elevated, var(--bg));
+  color: var(--text);
+  font: inherit;
+}
+
+.admin-stock-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+@media (max-width: 960px) {
+  .admin-backup-forms {
+    grid-template-columns: 1fr;
+  }
+}
+
 .admin-wallet-layout {
   display: grid;
   grid-template-columns: minmax(280px, 360px) 1fr;

@@ -1,5 +1,10 @@
 import { dbGetOrderById, dbDeliverOrderUnits, dbUpdateOrder } from "@/lib/db/orders";
 import { dbGetStockById } from "@/lib/db/stock";
+import {
+  dbClaimBackupStockForOrder,
+  dbCountFreeBackupForSeries,
+  dbReleaseBackupStockForOrder,
+} from "@/lib/db/backup-stock";
 import type { Order } from "@/lib/orders";
 import { isHostHeavenProvider } from "@/lib/stock-providers";
 import {
@@ -46,8 +51,16 @@ export async function listAvailableHostHeavenVms(
   });
 }
 
-async function buildNoMatchNote(series: string): Promise<string> {
+async function buildNoMatchNote(series: string, orderType?: Order["stockType"]): Promise<string> {
+  const backupFree = await dbCountFreeBackupForSeries(series, orderType).catch(() => 0);
+
   try {
+    if (!isHostHeavenConfigured()) {
+      return backupFree > 0
+        ? `Auto-provision: HostHeaven not configured. Backup stock has ${backupFree} free for ${series}, but claim failed.`
+        : `Auto-provision: HostHeaven not configured, and backup stock has no free IP for series "${series}". Admin → Backup Stock me add karo.`;
+    }
+
     const [usedIps, usedVmIds, vms] = await Promise.all([
       getAllocatedIpSet(),
       getAllocatedVmIdSet(),
@@ -74,59 +87,55 @@ async function buildNoMatchNote(series: string): Promise<string> {
       ),
     ].sort();
 
+    const backupHint =
+      backupFree > 0
+        ? ` Backup stock: ${backupFree} free (claim retry / check series match).`
+        : ` Backup stock: 0 free for this series — Admin → Backup Stock me IP|user|pass add karo.`;
+
     if (seriesMatched.length === 0) {
       return (
         `Auto-provision: HostHeaven pe series "${series}" ka koi VM nahi mila. ` +
         (freePrefixes.length
-          ? `Free series abhi: ${freePrefixes.join(", ")}. Stock series isi me se rakho, ya HostHeaven pe is series ke naye VMs add karo.`
-          : `HostHeaven pe abhi koi free VM nahi hai.`)
+          ? `Free series abhi: ${freePrefixes.join(", ")}. `
+          : `HostHeaven pe abhi koi free VM nahi. `) +
+        backupHint
       );
     }
 
     if (seriesFree.length === 0) {
       return (
         `Auto-provision: series "${series}" ke ${seriesMatched.length} VM HostHeaven pe hain, ` +
-        `lekin ${seriesSold} pehle se LinuxPro customers ko mil chuke hain (sold). ` +
-        `Is series ke liye HostHeaven pe naya free IP/VPS add karo.` +
-        (freePrefixes.length ? ` Dusri free series: ${freePrefixes.join(", ")}.` : "")
+        `lekin ${seriesSold} pehle se sold hain. ` +
+        (freePrefixes.length ? `Dusri free series: ${freePrefixes.join(", ")}. ` : "") +
+        backupHint
       );
     }
 
-    return `Auto-provision: no free HostHeaven IP matching series ${series}.`;
-  } catch (error) {
-    return `Auto-provision: no free HostHeaven IP matching series ${series}.`;
+    return `Auto-provision: no free IP matching series ${series}.${backupHint}`;
+  } catch {
+    return (
+      `Auto-provision: no free HostHeaven IP matching series ${series}.` +
+      (backupFree
+        ? ` Backup free: ${backupFree}.`
+        : ` Backup stock empty for this series.`)
+    );
   }
 }
 
-/**
- * After payment: allocate free HostHeaven VMs matching the order series,
- * fetch IP+password from API, and deliver to the customer automatically.
- * Never reuses IPs / VM ids already on servers or delivered orders.
- */
-export async function autoDeliverPaidOrder(orderId: string): Promise<{
-  order: Order | null;
-  delivered: boolean;
-  message: string;
-}> {
-  const order = await dbGetOrderById(orderId);
-  if (!order) {
-    return { order: null, delivered: false, message: "Order not found." };
-  }
-  if (order.paymentStatus !== "received") {
-    return { order, delivered: false, message: "Order is not paid yet." };
-  }
-  if (order.fulfillmentStatus === "delivered") {
-    return { order, delivered: true, message: "Already delivered." };
-  }
-  if (order.fulfillmentStatus === "cancelled") {
-    return { order, delivered: false, message: "Order is cancelled." };
-  }
-  if (!isHostHeavenConfigured()) {
-    return { order, delivered: false, message: "HostHeaven is not configured." };
-  }
+type DeliverUnit = {
+  ip: string;
+  username: string;
+  password: string;
+  providerVmId?: number;
+  provider: "hostheaven" | "manual";
+};
 
-  const stock = await dbGetStockById(order.stockId);
-  const preferHostHeaven = !stock || isHostHeavenProvider(stock.provider);
+async function tryDeliverFromHostHeaven(
+  order: Order
+): Promise<{ units: DeliverUnit[]; error?: string }> {
+  if (!isHostHeavenConfigured()) {
+    return { units: [] };
+  }
 
   let available: HostHeavenVm[];
   try {
@@ -134,43 +143,15 @@ export async function autoDeliverPaidOrder(orderId: string): Promise<{
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Failed to list HostHeaven VMs.";
-    console.error("[autoDeliver]", orderId, message);
-    return { order, delivered: false, message };
-  }
-
-  if (available.length === 0) {
-    if (preferHostHeaven) {
-      await dbUpdateOrder(orderId, {
-        fulfillmentStatus: "processing",
-        adminNote: await buildNoMatchNote(order.series),
-      });
-    }
-    return {
-      order: await dbGetOrderById(orderId),
-      delivered: false,
-      message: "No matching free IP available yet.",
-    };
+    console.error("[autoDeliver]", order.id, message);
+    return { units: [], error: message };
   }
 
   if (available.length < order.quantity) {
-    await dbUpdateOrder(orderId, {
-      fulfillmentStatus: "processing",
-      adminNote: `Auto-provision waiting: need ${order.quantity}, found ${available.length} free IP(s) for ${order.series}.`,
-    });
-    return {
-      order: await dbGetOrderById(orderId),
-      delivered: false,
-      message: `Only ${available.length}/${order.quantity} free IPs available.`,
-    };
+    return { units: [] };
   }
 
-  const units: {
-    ip: string;
-    username: string;
-    password: string;
-    providerVmId: number;
-    provider: "hostheaven";
-  }[] = [];
+  const units: DeliverUnit[] = [];
   const claimedIps = new Set<string>();
   const claimedVmIds = new Set<number>();
 
@@ -185,7 +166,6 @@ export async function autoDeliverPaidOrder(orderId: string): Promise<{
         continue;
       }
 
-      // Re-check DB right before claim (blocks reuse of old-user IPs).
       const [usedIps, usedVmIds] = await Promise.all([
         getAllocatedIpSet(),
         getAllocatedVmIdSet(),
@@ -209,20 +189,102 @@ export async function autoDeliverPaidOrder(orderId: string): Promise<{
   }
 
   if (units.length < order.quantity) {
+    return { units: [] };
+  }
+  return { units };
+}
+
+async function tryDeliverFromBackup(order: Order): Promise<DeliverUnit[]> {
+  const claimed = await dbClaimBackupStockForOrder(
+    order.id,
+    order.series,
+    order.quantity,
+    order.stockType
+  );
+  if (claimed.length < order.quantity) {
+    if (claimed.length > 0) {
+      await dbReleaseBackupStockForOrder(order.id);
+    }
+    return [];
+  }
+  return claimed.map((item) => ({
+    ip: item.ip.trim(),
+    username: item.username,
+    password: item.password,
+    provider: "manual" as const,
+  }));
+}
+
+/**
+ * After payment: allocate free HostHeaven VMs matching the order series,
+ * or fall back to admin Backup Stock when API has no free match.
+ */
+export async function autoDeliverPaidOrder(orderId: string): Promise<{
+  order: Order | null;
+  delivered: boolean;
+  message: string;
+}> {
+  const order = await dbGetOrderById(orderId);
+  if (!order) {
+    return { order: null, delivered: false, message: "Order not found." };
+  }
+  if (order.paymentStatus !== "received") {
+    return { order, delivered: false, message: "Order is not paid yet." };
+  }
+  if (order.fulfillmentStatus === "delivered") {
+    return { order, delivered: true, message: "Already delivered." };
+  }
+  if (order.fulfillmentStatus === "cancelled") {
+    return { order, delivered: false, message: "Order is cancelled." };
+  }
+
+  const stock = await dbGetStockById(order.stockId);
+  const preferHostHeaven =
+    isHostHeavenConfigured() && (!stock || isHostHeavenProvider(stock.provider));
+
+  let units: DeliverUnit[] = [];
+  let source: "hostheaven" | "backup" | null = null;
+  let hhError: string | undefined;
+
+  if (preferHostHeaven || isHostHeavenConfigured()) {
+    const hh = await tryDeliverFromHostHeaven(order);
+    hhError = hh.error;
+    if (hh.units.length >= order.quantity) {
+      units = hh.units;
+      source = "hostheaven";
+    }
+  }
+
+  if (!source) {
+    try {
+      const backupUnits = await tryDeliverFromBackup(order);
+      if (backupUnits.length >= order.quantity) {
+        units = backupUnits;
+        source = "backup";
+      }
+    } catch (error) {
+      console.error("[autoDeliver] backup", orderId, error);
+    }
+  }
+
+  if (!source || units.length < order.quantity) {
     await dbUpdateOrder(orderId, {
       fulfillmentStatus: "processing",
-      adminNote: `Auto-provision: could not load free credentials (${units.length}/${order.quantity}).`,
+      adminNote: hhError || (await buildNoMatchNote(order.series, order.stockType)),
     });
     return {
       order: await dbGetOrderById(orderId),
       delivered: false,
-      message: "Could not load enough unused VM credentials.",
+      message: "No matching free IP available yet (API + backup).",
     };
   }
 
   try {
     const delivered = await dbDeliverOrderUnits(orderId, units);
     if (!delivered) {
+      if (source === "backup") {
+        await dbReleaseBackupStockForOrder(orderId);
+      }
       return {
         order: await dbGetOrderById(orderId),
         delivered: false,
@@ -230,6 +292,9 @@ export async function autoDeliverPaidOrder(orderId: string): Promise<{
       };
     }
   } catch (error) {
+    if (source === "backup") {
+      await dbReleaseBackupStockForOrder(orderId).catch(() => undefined);
+    }
     const message =
       error instanceof Error ? error.message : "Delivery failed.";
     console.error("[autoDeliver] deliver", orderId, message);
@@ -245,12 +310,18 @@ export async function autoDeliverPaidOrder(orderId: string): Promise<{
   }
 
   await dbUpdateOrder(orderId, {
-    adminNote: `Auto-delivered from HostHeaven: ${units.map((u) => u.ip).join(", ")}`,
+    adminNote:
+      source === "backup"
+        ? `Auto-delivered from Backup Stock: ${units.map((u) => u.ip).join(", ")}`
+        : `Auto-delivered from HostHeaven: ${units.map((u) => u.ip).join(", ")}`,
   });
 
   return {
     order: await dbGetOrderById(orderId),
     delivered: true,
-    message: `Delivered ${units.length} IP(s) automatically.`,
+    message:
+      source === "backup"
+        ? `Delivered ${units.length} IP(s) from backup stock.`
+        : `Delivered ${units.length} IP(s) automatically.`,
   };
 }
