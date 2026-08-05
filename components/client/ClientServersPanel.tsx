@@ -28,9 +28,10 @@ function ServerCard({ server }: { server: UserServer }) {
   const osDisplay = server.os && server.os !== "N/A" ? server.os : "—";
   const expiresAt = resolveServerExpiresAt(server);
   const expired = isServerExpired(expiresAt);
+  const displayPower: UserServer["powerState"] = expired ? "stopped" : server.powerState;
 
   return (
-    <article className={`servers-pro-card servers-pro-card--${server.powerState}`}>
+    <article className={`servers-pro-card servers-pro-card--${displayPower}`}>
       <div className="servers-pro-card__glow" aria-hidden />
       <div className="servers-pro-card__top">
         <div className="servers-pro-card__identity">
@@ -38,9 +39,9 @@ function ServerCard({ server }: { server: UserServer }) {
           <h3>{server.name}</h3>
           <span className="servers-pro-card__region">{server.region}</span>
         </div>
-        <div className={`servers-pro-card__power servers-pro-card__power--${server.powerState}`}>
+        <div className={`servers-pro-card__power servers-pro-card__power--${displayPower}`}>
           <span className="servers-pro-card__power-dot" />
-          {powerLabel(server.powerState)}
+          {expired ? "Offline" : powerLabel(server.powerState)}
         </div>
       </div>
 
@@ -66,7 +67,7 @@ function ServerCard({ server }: { server: UserServer }) {
       </div>
 
       <div className="servers-pro-card__footer">
-        <span className={`servers-pro-status servers-pro-status--${server.status}`}>
+        <span className={`servers-pro-status servers-pro-status--${expired ? "suspended" : server.status}`}>
           {expired ? "expired" : server.status}
         </span>
         <Link href={`/client/servers/${server.id}`} className="servers-pro-card__btn">
@@ -133,8 +134,10 @@ export function ClientServersPanel() {
   }, [servers, search, statusFilter]);
 
   const stats = useMemo(() => {
-    const online = servers.filter((s) => s.powerState === "running").length;
-    const offline = servers.filter((s) => s.powerState === "stopped").length;
+    const online = servers.filter(
+      (s) => s.powerState === "running" && !serverIsExpired(s)
+    ).length;
+    const offline = servers.length - online;
     return { total: servers.length, online, offline };
   }, [servers]);
 

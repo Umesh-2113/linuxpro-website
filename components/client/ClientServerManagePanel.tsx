@@ -184,6 +184,10 @@ export function ClientServerManagePanel({ serverId }: Props) {
 
   const handleAction = (action: ServerActionType) => {
     if (!server || busyAction) return;
+    if (isServerExpired(resolveServerExpiresAt(server))) {
+      setToast("This server has expired. Renew to use controls.");
+      return;
+    }
     if (pendingFor(action)) {
       setToast("This action is already in progress.");
       return;
@@ -237,6 +241,9 @@ export function ClientServerManagePanel({ serverId }: Props) {
   const osDisplay = server.os && server.os !== "N/A" ? server.os : "—";
   const expiresAt = resolveServerExpiresAt(server);
   const expired = isServerExpired(expiresAt);
+  const displayPower: UserServer["powerState"] = expired ? "stopped" : server.powerState;
+  const displayPowerLabel = expired ? "Offline" : powerLabel(server.powerState);
+  const displayAccountStatus = expired ? "expired" : server.status;
 
   const actionItems: {
     action: ServerActionType;
@@ -401,15 +408,19 @@ export function ClientServerManagePanel({ serverId }: Props) {
             </div>
           </div>
 
-          <div className={`manage-pro-power manage-pro-power--${server.powerState}`}>
+          <div className={`manage-pro-power manage-pro-power--${displayPower}`}>
             <div className="manage-pro-power__ring">
               <div className="manage-pro-power__core">
-                {actionIcons[server.powerState === "running" ? "start" : "stop"]}
+                {actionIcons[displayPower === "running" ? "start" : "stop"]}
               </div>
             </div>
-            <span className="manage-pro-power__label">{powerLabel(server.powerState)}</span>
-            <span className={`manage-pro-power__account manage-pro-power__account--${server.status}`}>
-              {server.status}
+            <span className="manage-pro-power__label">{displayPowerLabel}</span>
+            <span
+              className={`manage-pro-power__account manage-pro-power__account--${
+                expired ? "suspended" : server.status
+              }`}
+            >
+              {displayAccountStatus}
             </span>
           </div>
         </div>
@@ -419,9 +430,11 @@ export function ClientServerManagePanel({ serverId }: Props) {
         <div className="manage-pro-actions__head">
           <h2>Server Controls</h2>
           <p>
-            {server.provider === "hostheaven"
-              ? "Start, stop, and reinstall run instantly via API"
-              : "API servers run instantly; others go to admin queue"}
+            {expired
+              ? "This plan has expired — start/stop/reinstall are disabled until renewal."
+              : server.provider === "hostheaven"
+                ? "Start, stop, and reinstall run instantly via API"
+                : "API servers run instantly; others go to admin queue"}
           </p>
         </div>
 
@@ -436,7 +449,7 @@ export function ClientServerManagePanel({ serverId }: Props) {
                   pending || isBusy ? " manage-pro-action--pending" : ""
                 }`}
                 onClick={() => handleAction(action)}
-                disabled={!!pending || isSuspended || !!busyAction}
+                disabled={!!pending || isSuspended || expired || !!busyAction}
               >
                 <span className={`manage-pro-action__icon${isBusy ? " is-spinning" : ""}`}>
                   {actionIcons[action]}
@@ -517,8 +530,8 @@ export function ClientServerManagePanel({ serverId }: Props) {
               <span className="manage-pro-specs__icon">⚡</span>
               <div>
                 <small>Power State</small>
-                <strong className={`text-power text-power--${server.powerState}`}>
-                  {powerLabel(server.powerState)}
+                <strong className={`text-power text-power--${displayPower}`}>
+                  {displayPowerLabel}
                 </strong>
               </div>
             </li>
