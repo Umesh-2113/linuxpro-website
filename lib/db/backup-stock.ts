@@ -65,7 +65,7 @@ export async function dbAddBackupStockItem(
       username: data.username.trim(),
       password: data.password,
       series: data.series.trim(),
-      port: (data.port || "22").trim(),
+      port: (data.port || (data.type === "vps" ? "" : "22")).trim(),
       id: `bak-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       status: "free",
       createdAt: now,

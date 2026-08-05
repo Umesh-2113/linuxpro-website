@@ -29,9 +29,9 @@ const emptyForm: FormState = {
   type: "vps",
   series: "",
   ip: "",
-  username: "root",
+  username: "",
   password: "",
-  port: "22",
+  port: "",
   os: "Ubuntu 22.04",
   region: "Mumbai",
   note: "",
@@ -41,7 +41,11 @@ function defaultsForType(type: StockType): Partial<FormState> {
   if (type === "proxy") {
     return { port: "8000", os: "N/A", username: "user" };
   }
-  return { port: "22", os: "Ubuntu 22.04", username: "root" };
+  if (type === "linux") {
+    return { port: "22", os: "Ubuntu 22.04", username: "root" };
+  }
+  // VPS: no port field; username is separate (not root by default)
+  return { port: "", os: "Ubuntu 22.04", username: "" };
 }
 
 export function AdminBackupStockPanel() {
@@ -114,7 +118,11 @@ export function AdminBackupStockPanel() {
     setError("");
     setMessage("");
     try {
-      await addBackupStockItem(form);
+      const payload = {
+        ...form,
+        port: form.type === "vps" ? "" : form.port || "22",
+      };
+      await addBackupStockItem(payload);
       setForm({
         ...emptyForm,
         type: form.type,
@@ -250,7 +258,8 @@ export function AdminBackupStockPanel() {
           </div>
           <div className="admin-backup-form-body">
             <p className="stock-empty-text">
-              Pehle <strong>Type</strong> choose karo (VPS / Linux / Proxy), phir IP + login add karo.
+              Pehle <strong>Type</strong> choose karo. VPS pe port nahi — username alag hota hai.
+              Linux IP pe <code>root</code> + port 22.
             </p>
             <div className="form-row form-row--2">
               <label className="form-field">
@@ -285,10 +294,19 @@ export function AdminBackupStockPanel() {
                 />
               </label>
               <label className="form-field">
-                <span>Username</span>
+                <span>
+                  {form.type === "vps" ? "VPS Username" : "Username"}
+                </span>
                 <input
                   required
                   value={form.username}
+                  placeholder={
+                    form.type === "vps"
+                      ? "VPS panel / login user"
+                      : form.type === "linux"
+                        ? "root"
+                        : "user"
+                  }
                   onChange={(e) => setForm((f) => ({ ...f, username: e.target.value }))}
                 />
               </label>
@@ -300,13 +318,15 @@ export function AdminBackupStockPanel() {
                   onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
                 />
               </label>
-              <label className="form-field">
-                <span>Port</span>
-                <input
-                  value={form.port}
-                  onChange={(e) => setForm((f) => ({ ...f, port: e.target.value }))}
-                />
-              </label>
+              {form.type !== "vps" && (
+                <label className="form-field">
+                  <span>Port</span>
+                  <input
+                    value={form.port}
+                    onChange={(e) => setForm((f) => ({ ...f, port: e.target.value }))}
+                  />
+                </label>
+              )}
               <label className="form-field">
                 <span>OS</span>
                 <input
@@ -342,7 +362,12 @@ export function AdminBackupStockPanel() {
           <div className="admin-backup-form-body">
             <p className="stock-empty-text">
               Default type choose karo, phir har line:{" "}
-              <code>IP|username|password|port</code>
+              <code>
+                {bulkType === "vps"
+                  ? "IP|username|password"
+                  : "IP|username|password|port"}
+              </code>
+              {bulkType === "vps" ? " (VPS — port nahi)" : null}
             </p>
             <div className="form-row form-row--2">
               <label className="form-field">
@@ -375,7 +400,9 @@ export function AdminBackupStockPanel() {
                 placeholder={
                   bulkType === "proxy"
                     ? "103.183.1.10|user|pass123|8000\n103.183.1.11|user|pass456|8000"
-                    : "103.183.1.10|root|pass123|22\n103.183.1.11|root|pass456|22"
+                    : bulkType === "vps"
+                      ? "103.183.1.10|vpsuser|pass123\n103.183.1.11|admin|pass456"
+                      : "103.183.1.10|root|pass123|22\n103.183.1.11|root|pass456|22"
                 }
                 onChange={(e) => setBulk(e.target.value)}
                 required
@@ -427,7 +454,9 @@ export function AdminBackupStockPanel() {
                   <tr key={item.id}>
                     <td>
                       <strong>{item.ip}</strong>
-                      {item.port ? <small> :{item.port}</small> : null}
+                      {item.type !== "vps" && item.port ? (
+                        <small> :{item.port}</small>
+                      ) : null}
                     </td>
                     <td>{item.series}</td>
                     <td>
