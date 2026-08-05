@@ -11,7 +11,12 @@ import {
   type Order,
 } from "@/lib/orders";
 import { getTicketsByUser } from "@/lib/tickets";
-import { getServersByUser, type UserServer } from "@/lib/user-servers";
+import {
+  getServersByUser,
+  isServerExpired,
+  resolveServerExpiresAt,
+  type UserServer,
+} from "@/lib/user-servers";
 import {
   fetchWallet,
   formatWalletAmount,
@@ -67,7 +72,11 @@ export function ClientDashboard() {
   }, [load]);
 
   const stats = useMemo(() => {
-    const online = servers.filter((s) => s.powerState === "running").length;
+    const online = servers.filter(
+      (s) =>
+        s.powerState === "running" &&
+        !isServerExpired(resolveServerExpiresAt(s))
+    ).length;
     const activeOrders = orders.filter(
       (o) =>
         o.fulfillmentStatus !== "delivered" && o.fulfillmentStatus !== "cancelled"
@@ -200,9 +209,15 @@ export function ClientDashboard() {
                       {stockTypeLabels[s.type]}
                     </span>
                     <span
-                      className={`client-home-server-row__power client-home-server-row__power--${s.powerState}`}
+                      className={`client-home-server-row__power client-home-server-row__power--${
+                        isServerExpired(resolveServerExpiresAt(s))
+                          ? "stopped"
+                          : s.powerState
+                      }`}
                     >
-                      {powerLabel(s.powerState)}
+                      {isServerExpired(resolveServerExpiresAt(s))
+                        ? "Offline"
+                        : powerLabel(s.powerState)}
                     </span>
                   </div>
                 </Link>
