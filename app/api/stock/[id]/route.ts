@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { dbDeleteStockItem, dbUpdateStockItem } from "@/lib/db/stock";
+import { dbDeleteStockItem, dbGetStockById, dbUpdateStockItem } from "@/lib/db/stock";
+import { notifyClientsNewStock } from "@/lib/stock-notify";
 import { isAdminApiRequest } from "@/lib/server-session";
 
 type Params = { params: Promise<{ id: string }> };
@@ -11,10 +12,21 @@ export async function PATCH(req: Request, { params }: Params) {
     }
     const { id } = await params;
     const body = await req.json();
+    const prev = await dbGetStockById(id);
     const item = await dbUpdateStockItem(id, body);
     if (!item) {
       return NextResponse.json({ error: "Stock item not found." }, { status: 404 });
     }
+
+    const prevQty = prev?.quantity ?? 0;
+    const nextQty = item.quantity ?? 0;
+    // Notify registered clients when out-of-stock item becomes available again.
+    if (prevQty <= 0 && nextQty > 0) {
+      await notifyClientsNewStock(item, "restocked").catch((error) => {
+        console.error("[API stock notify]", error);
+      });
+    }
+
     return NextResponse.json(item);
   } catch (error) {
     console.error("[API stock PATCH]", error);

@@ -6,6 +6,7 @@ import {
 } from "@/lib/db/stock";
 import { syncHostHeavenStockToDb } from "@/lib/hostheaven/sync-stock";
 import { isHostHeavenConfigured } from "@/lib/hostheaven/client";
+import { notifyClientsNewStock } from "@/lib/stock-notify";
 import { isAdminApiRequest } from "@/lib/server-session";
 import type { StockType } from "@/lib/stock";
 
@@ -39,6 +40,13 @@ export async function POST(req: Request) {
     }
     const body = await req.json();
     const item = await dbAddStockItem(body);
+
+    if (item.quantity > 0) {
+      await notifyClientsNewStock(item, "added").catch((error) => {
+        console.error("[API stock notify]", error);
+      });
+    }
+
     return NextResponse.json(item, { status: 201 });
   } catch (error) {
     console.error("[API stock POST]", error);

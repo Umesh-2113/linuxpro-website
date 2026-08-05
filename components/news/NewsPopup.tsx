@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useSession } from "next-auth/react";
 import { whatsappChatUrl } from "@/lib/contact";
@@ -50,10 +50,15 @@ export function NewsPopup({ enabled = true }: { enabled?: boolean }) {
   const [popupSettings, setPopupSettings] = useState<NewsPopupSettings>(
     defaultNewsPopupSettings
   );
+  const openRef = useRef(false);
 
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  useEffect(() => {
+    openRef.current = open;
+  }, [open]);
 
   useEffect(() => {
     if (!enabled || status !== "authenticated") return;
@@ -70,7 +75,15 @@ export function NewsPopup({ enabled = true }: { enabled?: boolean }) {
         if (!Array.isArray(items) || items.length === 0) return;
         const seen = readSeen();
         const unseen = items.filter((item) => !seen.includes(item.id));
-        if (unseen.length > 0) {
+        if (unseen.length === 0) return;
+
+        if (openRef.current) {
+          setQueue((prev) => {
+            const known = new Set(prev.map((p) => p.id));
+            const fresh = unseen.filter((item) => !known.has(item.id));
+            return fresh.length ? [...prev, ...fresh] : prev;
+          });
+        } else {
           setQueue(unseen);
           setIndex(0);
           setOpen(true);
@@ -81,8 +94,14 @@ export function NewsPopup({ enabled = true }: { enabled?: boolean }) {
     }
 
     void load();
+    const poll = window.setInterval(() => void load(), 45_000);
+    const onFocus = () => void load();
+    window.addEventListener("focus", onFocus);
+
     return () => {
       cancelled = true;
+      window.clearInterval(poll);
+      window.removeEventListener("focus", onFocus);
     };
   }, [status, enabled]);
 
@@ -92,6 +111,8 @@ export function NewsPopup({ enabled = true }: { enabled?: boolean }) {
 
   const dismissAll = () => {
     markSeen(queue.map((item) => item.id));
+    setQueue([]);
+    setIndex(0);
     setOpen(false);
   };
 
@@ -116,6 +137,8 @@ export function NewsPopup({ enabled = true }: { enabled?: boolean }) {
   const next = () => {
     markSeen([current.id]);
     if (isLast) {
+      setQueue([]);
+      setIndex(0);
       setOpen(false);
     } else {
       setIndex((i) => i + 1);
