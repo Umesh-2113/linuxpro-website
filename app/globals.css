@@ -6413,6 +6413,140 @@ section { padding: 100px 0; }
   gap: 14px;
 }
 
+.client-orders-stats--history {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.client-history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.client-history-list__head {
+  display: none;
+  grid-template-columns: 1.1fr 1.4fr 1.2fr 0.8fr 0.9fr 0.9fr;
+  gap: 12px;
+  padding: 0 18px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.client-history-row {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+  padding: 16px 18px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  transition: border-color 0.2s, transform 0.2s;
+}
+
+.client-history-row:hover {
+  border-color: rgba(0, 208, 132, 0.28);
+}
+
+.client-history-row--cancelled {
+  opacity: 0.78;
+}
+
+.client-history-row__id {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.client-history-row__id code {
+  font-size: 0.82rem;
+  color: var(--primary);
+  font-weight: 700;
+}
+
+.client-history-row__id span,
+.client-history-row__product span,
+.client-history-row__date span {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.client-history-row__product,
+.client-history-row__date {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.client-history-row__product strong,
+.client-history-row__date strong {
+  color: var(--accent);
+  font-size: 0.95rem;
+}
+
+.client-history-row__amount {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: var(--accent);
+}
+
+.client-history-row__status {
+  display: flex;
+  align-items: center;
+}
+
+.client-history-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 10px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  border: 1px solid transparent;
+}
+
+.client-history-badge--delivered {
+  color: var(--primary);
+  background: rgba(0, 208, 132, 0.1);
+  border-color: rgba(0, 208, 132, 0.3);
+}
+
+.client-history-badge--cancelled {
+  color: #f87171;
+  background: rgba(248, 113, 113, 0.08);
+  border-color: rgba(248, 113, 113, 0.28);
+}
+
+.client-history-row__action {
+  display: flex;
+  align-items: center;
+}
+
+.client-history-row__muted {
+  color: var(--text-muted);
+}
+
+@media (min-width: 900px) {
+  .client-history-list__head {
+    display: grid;
+  }
+
+  .client-history-row {
+    grid-template-columns: 1.1fr 1.4fr 1.2fr 0.8fr 0.9fr 0.9fr;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 18px;
+  }
+}
+
+@media (max-width: 768px) {
+  .client-orders-stats--history {
+    grid-template-columns: 1fr;
+  }
+}
+
 .client-orders-stat {
   padding: 18px 20px;
   text-align: center;

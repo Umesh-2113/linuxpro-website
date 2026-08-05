@@ -65,13 +65,14 @@ export function ClientOrdersPanel() {
   const stats = useMemo(() => {
     const paid = orders.filter((o) => o.paymentStatus === "received").length;
     const delivered = orders.filter((o) => o.fulfillmentStatus === "delivered").length;
+    const cancelled = orders.filter((o) => o.fulfillmentStatus === "cancelled").length;
     const awaiting = orders.filter(
       (o) =>
         o.paymentStatus === "received" &&
         o.fulfillmentStatus !== "delivered" &&
         o.fulfillmentStatus !== "cancelled"
     ).length;
-    return { total: orders.length, paid, delivered, awaiting };
+    return { total: orders.length, paid, delivered, cancelled, awaiting };
   }, [orders]);
 
   const visibleOrders = useMemo(() => {
@@ -86,7 +87,7 @@ export function ClientOrdersPanel() {
   }, [orders, tab]);
 
   return (
-    <div className="client-orders-page">
+    <div className={`client-orders-page${tab === "history" ? " client-orders-page--history" : ""}`}>
       <header className="client-orders-hero">
         <div className="client-orders-hero__glow" aria-hidden />
         <div className="client-orders-hero__content">
@@ -95,7 +96,7 @@ export function ClientOrdersPanel() {
             <h1>{tab === "history" ? "Order History" : "Manage Orders"}</h1>
             <p>
               {tab === "history"
-                ? "View completed and cancelled orders."
+                ? "Completed and cancelled purchases in one place."
                 : "Track payment, delivery, and open your server when it's ready."}
             </p>
           </div>
@@ -105,18 +106,27 @@ export function ClientOrdersPanel() {
         </div>
       </header>
 
-      <div className="ocean-orders-tabs">
+      <div className="ocean-orders-tabs" role="tablist" aria-label="Orders views">
         <Link
           href="/client/orders"
           className={`ocean-orders-tabs__btn${tab === "manage" ? " active" : ""}`}
         >
           Manage Orders
+          <span className="ocean-orders-tabs__count">
+            {orders.filter(
+              (o) =>
+                o.fulfillmentStatus !== "delivered" && o.fulfillmentStatus !== "cancelled"
+            ).length}
+          </span>
         </Link>
         <Link
           href="/client/orders?tab=history"
           className={`ocean-orders-tabs__btn${tab === "history" ? " active" : ""}`}
         >
           Order History
+          <span className="ocean-orders-tabs__count">
+            {stats.delivered + stats.cancelled}
+          </span>
         </Link>
       </div>
 
@@ -141,6 +151,29 @@ export function ClientOrdersPanel() {
         </div>
       )}
 
+      {orders.length > 0 && tab === "history" && (
+        <div className="client-orders-stats client-orders-stats--history">
+          <div className="client-orders-stat glass client-orders-stat--ok">
+            <span className="client-orders-stat__value">{stats.delivered}</span>
+            <span className="client-orders-stat__label">Delivered</span>
+          </div>
+          <div className="client-orders-stat glass">
+            <span className="client-orders-stat__value">{stats.cancelled}</span>
+            <span className="client-orders-stat__label">Cancelled</span>
+          </div>
+          <div className="client-orders-stat glass">
+            <span className="client-orders-stat__value">
+              ₹
+              {orders
+                .filter((o) => o.fulfillmentStatus === "delivered")
+                .reduce((sum, o) => sum + o.totalAmount, 0)
+                .toLocaleString("en-IN")}
+            </span>
+            <span className="client-orders-stat__label">Paid Total</span>
+          </div>
+        </div>
+      )}
+
       {visibleOrders.length === 0 ? (
         <div className="client-orders-empty glass">
           <div className="client-orders-empty__icon">📦</div>
@@ -155,6 +188,70 @@ export function ClientOrdersPanel() {
               Browse IP Stock
             </Link>
           )}
+        </div>
+      ) : tab === "history" ? (
+        <div className="client-history-list">
+          <div className="client-history-list__head" aria-hidden>
+            <span>Order</span>
+            <span>Product</span>
+            <span>Date</span>
+            <span>Amount</span>
+            <span>Status</span>
+            <span />
+          </div>
+          {visibleOrders.map((o) => {
+            const servers = getServersByOrder(o.id);
+            const isDelivered = o.fulfillmentStatus === "delivered";
+            const cancelled = o.fulfillmentStatus === "cancelled";
+
+            return (
+              <article
+                key={o.id}
+                className={`client-history-row glass${cancelled ? " client-history-row--cancelled" : ""}`}
+              >
+                <div className="client-history-row__id">
+                  <code>{o.id}</code>
+                  <span>{getPaymentMethodLabel(o)}</span>
+                </div>
+                <div className="client-history-row__product">
+                  <strong>IP {getOrderTitle(o)}</strong>
+                  <span>{getOrderSubtitle(o)}</span>
+                </div>
+                <div className="client-history-row__date">
+                  <strong>{formatOrderDate(o.createdAt)}</strong>
+                  <span>Qty {o.quantity}</span>
+                </div>
+                <div className="client-history-row__amount">
+                  ₹{o.totalAmount.toLocaleString("en-IN")}
+                </div>
+                <div className="client-history-row__status">
+                  <span
+                    className={`client-history-badge client-history-badge--${
+                      cancelled ? "cancelled" : "delivered"
+                    }`}
+                  >
+                    {cancelled ? "Cancelled" : "Delivered"}
+                  </span>
+                </div>
+                <div className="client-history-row__action">
+                  {isDelivered && servers.length > 0 ? (
+                    <Link
+                      href={`/client/servers/${servers[0].id}`}
+                      className="btn btn--outline btn--sm"
+                    >
+                      Open Server
+                    </Link>
+                  ) : isDelivered ? (
+                    <Link href="/client/servers" className="btn btn--ghost btn--sm">
+                      My Servers
+                    </Link>
+                  ) : (
+                    <span className="client-history-row__muted">—</span>
+                  )}
+                </div>
+              </article>
+            );
+          })}
         </div>
       ) : (
         <div className="client-orders-list">

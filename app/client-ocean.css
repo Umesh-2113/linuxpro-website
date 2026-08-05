@@ -468,31 +468,50 @@
 }
 
 .ocean-orders-tabs {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 20px;
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 6px;
+  margin-bottom: 4px;
+  border-radius: 999px;
+  border: 1px solid var(--glass-border);
+  background: rgba(255, 255, 255, 0.03);
 }
 
 .ocean-orders-tabs__btn {
-  padding: 8px 16px;
-  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 16px;
+  border-radius: 999px;
   font-size: 0.85rem;
   font-weight: 600;
   color: var(--text-muted);
-  border: 1px solid var(--glass-border);
-  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid transparent;
+  background: transparent;
   transition: all 0.2s;
 }
 
 .ocean-orders-tabs__btn:hover {
   color: var(--accent);
-  border-color: rgba(0, 208, 132, 0.25);
+  background: rgba(255, 255, 255, 0.04);
 }
 
 .ocean-orders-tabs__btn.active {
   color: var(--primary);
-  background: rgba(0, 208, 132, 0.1);
+  background: rgba(0, 208, 132, 0.12);
   border-color: rgba(0, 208, 132, 0.35);
+}
+
+.ocean-orders-tabs__count {
+  display: inline-flex;
+  min-width: 1.4rem;
+  justify-content: center;
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  background: rgba(255, 255, 255, 0.06);
 }
 
 /* Cart drawer */
