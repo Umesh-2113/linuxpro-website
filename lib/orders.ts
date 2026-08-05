@@ -173,17 +173,21 @@ export async function updateOrder(
 
 export async function deliverOrderToCustomer(
   id: string,
-  creds: { ip: string; username: string; password: string }
+  creds:
+    | { ip: string; username: string; password: string }
+    | { ip: string; username: string; password: string }[]
 ): Promise<Order | null> {
   try {
-    const updated = await apiPost<Order>(`/api/orders/${id}/deliver`, creds);
+    const units = Array.isArray(creds) ? creds : [creds];
+    const updated = await apiPost<Order>(`/api/orders/${id}/deliver`, { units });
     cache = cache.map((o) => (o.id === id ? updated : o));
     emitUpdate();
     if (typeof window !== "undefined") {
       window.dispatchEvent(new Event("servers-updated"));
     }
     return updated;
-  } catch {
+  } catch (err) {
+    if (err instanceof Error) throw err;
     return null;
   }
 }
@@ -213,20 +217,23 @@ export async function autoDeliverOrder(
 
 export async function updateOrderCredentials(
   id: string,
-  creds: { ip: string; username: string; password: string }
+  creds:
+    | { ip: string; username: string; password: string }
+    | { serverId?: string; ip: string; username: string; password: string }[]
 ): Promise<Order | null> {
   try {
-    const updated = await apiPost<Order>(`/api/orders/${id}/deliver`, {
-      ...creds,
-      mode: "update",
-    });
+    const body = Array.isArray(creds)
+      ? { mode: "update", units: creds }
+      : { mode: "update", ...creds };
+    const updated = await apiPost<Order>(`/api/orders/${id}/deliver`, body);
     cache = cache.map((o) => (o.id === id ? updated : o));
     emitUpdate();
     if (typeof window !== "undefined") {
       window.dispatchEvent(new Event("servers-updated"));
     }
     return updated;
-  } catch {
+  } catch (err) {
+    if (err instanceof Error) throw err;
     return null;
   }
 }

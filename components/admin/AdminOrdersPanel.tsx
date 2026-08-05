@@ -50,9 +50,9 @@ export function AdminOrdersPanel() {
   const [fulfillmentFilter, setFulfillmentFilter] = useState<FulfillmentFilter>("all");
   const [search, setSearch] = useState("");
   const [adminNote, setAdminNote] = useState("");
-  const [deliverIp, setDeliverIp] = useState("");
-  const [deliverUsername, setDeliverUsername] = useState("");
-  const [deliverPassword, setDeliverPassword] = useState("");
+  const [deliverUnits, setDeliverUnits] = useState<
+    { serverId?: string; ip: string; username: string; password: string }[]
+  >([{ ip: "", username: "", password: "" }]);
   const [deliverError, setDeliverError] = useState("");
   const [saveSuccess, setSaveSuccess] = useState("");
   const [autoBusy, setAutoBusy] = useState(false);
@@ -103,12 +103,39 @@ export function AdminOrdersPanel() {
 
   useEffect(() => {
     setAdminNote(selected?.adminNote ?? "");
-    setDeliverIp(selected?.deliverIp ?? "");
-    setDeliverUsername(selected?.deliverUsername ?? "");
-    setDeliverPassword(selected?.deliverPassword ?? "");
     setDeliverError("");
     setSaveSuccess("");
-  }, [selected]);
+    if (!selected) {
+      setDeliverUnits([{ ip: "", username: "", password: "" }]);
+      return;
+    }
+    const qty = Math.max(1, selected.quantity || 1);
+    const linked = getServersByOrder(selected.id);
+    if (linked.length > 0) {
+      setDeliverUnits(
+        linked.map((s) => ({
+          serverId: s.id,
+          ip: s.ip || "",
+          username: s.username || "",
+          password: s.password || "",
+        }))
+      );
+      return;
+    }
+    const blank = Array.from({ length: qty }, () => ({
+      ip: "",
+      username: "",
+      password: "",
+    }));
+    if (selected.deliverIp) {
+      blank[0] = {
+        ip: selected.deliverIp,
+        username: selected.deliverUsername || "",
+        password: selected.deliverPassword || "",
+      };
+    }
+    setDeliverUnits(blank);
+  }, [selected, serversTick]);
 
   const stats = getOrderStats();
   void serversTick;
@@ -144,9 +171,6 @@ export function AdminOrdersPanel() {
       if (result.order) {
         setSelected(result.order);
         setAdminNote(result.order.adminNote ?? "");
-        setDeliverIp(result.order.deliverIp ?? "");
-        setDeliverUsername(result.order.deliverUsername ?? "");
-        setDeliverPassword(result.order.deliverPassword ?? "");
       }
       if (result.delivered) {
         setSaveSuccess(result.message || "Auto-delivered successfully.");
@@ -446,38 +470,59 @@ export function AdminOrdersPanel() {
                 {selected.fulfillmentStatus === "delivered" ? (
                   <div className="order-deliver-form">
                     <p className="order-delivered-creds__title">
-                      ✓ Delivered — edit credentials below if wrong
+                      ✓ Delivered — {deliverUnits.length} unit
+                      {deliverUnits.length > 1 ? "s" : ""} (edit if wrong)
                     </p>
-                    <div className="order-deliver-form__grid">
-                      <div className="auth-form__field">
-                        <label htmlFor="edit-deliver-ip">IP Address</label>
-                        <input
-                          id="edit-deliver-ip"
-                          value={deliverIp}
-                          onChange={(e) => setDeliverIp(e.target.value)}
-                          placeholder="e.g. 162.4.12.55"
-                        />
+                    {deliverUnits.map((unit, idx) => (
+                      <div key={unit.serverId || idx} className="order-deliver-unit">
+                        <h4 className="order-deliver-unit__title">
+                          Unit {idx + 1}
+                          {unit.serverId ? <small> · {unit.serverId}</small> : null}
+                        </h4>
+                        <div className="order-deliver-form__grid">
+                          <div className="auth-form__field">
+                            <label htmlFor={`edit-deliver-ip-${idx}`}>IP Address</label>
+                            <input
+                              id={`edit-deliver-ip-${idx}`}
+                              value={unit.ip}
+                              onChange={(e) => {
+                                const next = [...deliverUnits];
+                                next[idx] = { ...next[idx], ip: e.target.value };
+                                setDeliverUnits(next);
+                              }}
+                              placeholder="e.g. 162.4.12.55"
+                            />
+                          </div>
+                          <div className="auth-form__field">
+                            <label htmlFor={`edit-deliver-user-${idx}`}>Username</label>
+                            <input
+                              id={`edit-deliver-user-${idx}`}
+                              value={unit.username}
+                              onChange={(e) => {
+                                const next = [...deliverUnits];
+                                next[idx] = { ...next[idx], username: e.target.value };
+                                setDeliverUnits(next);
+                              }}
+                              placeholder="Username"
+                            />
+                          </div>
+                          <div className="auth-form__field">
+                            <label htmlFor={`edit-deliver-pass-${idx}`}>Password</label>
+                            <input
+                              id={`edit-deliver-pass-${idx}`}
+                              type="text"
+                              value={unit.password}
+                              onChange={(e) => {
+                                const next = [...deliverUnits];
+                                next[idx] = { ...next[idx], password: e.target.value };
+                                setDeliverUnits(next);
+                              }}
+                              placeholder="Password"
+                            />
+                          </div>
+                        </div>
                       </div>
-                      <div className="auth-form__field">
-                        <label htmlFor="edit-deliver-user">Username</label>
-                        <input
-                          id="edit-deliver-user"
-                          value={deliverUsername}
-                          onChange={(e) => setDeliverUsername(e.target.value)}
-                          placeholder="Username"
-                        />
-                      </div>
-                      <div className="auth-form__field">
-                        <label htmlFor="edit-deliver-pass">Password</label>
-                        <input
-                          id="edit-deliver-pass"
-                          type="text"
-                          value={deliverPassword}
-                          onChange={(e) => setDeliverPassword(e.target.value)}
-                          placeholder="Password"
-                        />
-                      </div>
-                    </div>
+                    ))}
                     {deliverError && (
                       <div className="auth-form__error">{deliverError}</div>
                     )}
@@ -491,18 +536,28 @@ export function AdminOrdersPanel() {
                         void (async () => {
                           setDeliverError("");
                           setSaveSuccess("");
-                          const result = await updateOrderCredentials(selected.id, {
-                            ip: deliverIp,
-                            username: deliverUsername,
-                            password: deliverPassword,
-                          });
-                          if (!result) {
-                            setDeliverError("Fill IP, username and password.");
-                            return;
+                          try {
+                            const result = await updateOrderCredentials(
+                              selected.id,
+                              deliverUnits
+                            );
+                            if (!result) {
+                              setDeliverError(
+                                "Fill IP, username and password for every unit."
+                              );
+                              return;
+                            }
+                            setSelected(result);
+                            setSaveSuccess(
+                              "Credentials updated — customer sees new details instantly."
+                            );
+                            await fetchServers();
+                            load();
+                          } catch (err) {
+                            setDeliverError(
+                              err instanceof Error ? err.message : "Update failed."
+                            );
                           }
-                          setSelected(result);
-                          setSaveSuccess("Credentials updated — customer sees new details instantly.");
-                          load();
                         })();
                       }}
                     >
@@ -516,39 +571,60 @@ export function AdminOrdersPanel() {
                         Mark payment as received before delivering credentials.
                       </p>
                     )}
-                    <div className="order-deliver-form__grid">
-                      <div className="auth-form__field">
-                        <label htmlFor="deliver-ip">IP Address</label>
-                        <input
-                          id="deliver-ip"
-                          value={deliverIp}
-                          onChange={(e) => setDeliverIp(e.target.value)}
-                          placeholder="e.g. 162.4.12.55"
-                          disabled={selected.paymentStatus !== "received"}
-                        />
+                    <p className="admin-panel__note" style={{ marginBottom: 12 }}>
+                      Quantity <strong>{selected.quantity}</strong> — har unit ke liye alag
+                      IP / username / password bharein.
+                    </p>
+                    {deliverUnits.map((unit, idx) => (
+                      <div key={idx} className="order-deliver-unit">
+                        <h4 className="order-deliver-unit__title">Unit {idx + 1}</h4>
+                        <div className="order-deliver-form__grid">
+                          <div className="auth-form__field">
+                            <label htmlFor={`deliver-ip-${idx}`}>IP Address</label>
+                            <input
+                              id={`deliver-ip-${idx}`}
+                              value={unit.ip}
+                              onChange={(e) => {
+                                const next = [...deliverUnits];
+                                next[idx] = { ...next[idx], ip: e.target.value };
+                                setDeliverUnits(next);
+                              }}
+                              placeholder="e.g. 162.4.12.55"
+                              disabled={selected.paymentStatus !== "received"}
+                            />
+                          </div>
+                          <div className="auth-form__field">
+                            <label htmlFor={`deliver-user-${idx}`}>Username</label>
+                            <input
+                              id={`deliver-user-${idx}`}
+                              value={unit.username}
+                              onChange={(e) => {
+                                const next = [...deliverUnits];
+                                next[idx] = { ...next[idx], username: e.target.value };
+                                setDeliverUnits(next);
+                              }}
+                              placeholder="e.g. root or vps user"
+                              disabled={selected.paymentStatus !== "received"}
+                            />
+                          </div>
+                          <div className="auth-form__field">
+                            <label htmlFor={`deliver-pass-${idx}`}>Password</label>
+                            <input
+                              id={`deliver-pass-${idx}`}
+                              type="text"
+                              value={unit.password}
+                              onChange={(e) => {
+                                const next = [...deliverUnits];
+                                next[idx] = { ...next[idx], password: e.target.value };
+                                setDeliverUnits(next);
+                              }}
+                              placeholder="Login password"
+                              disabled={selected.paymentStatus !== "received"}
+                            />
+                          </div>
+                        </div>
                       </div>
-                      <div className="auth-form__field">
-                        <label htmlFor="deliver-user">Username</label>
-                        <input
-                          id="deliver-user"
-                          value={deliverUsername}
-                          onChange={(e) => setDeliverUsername(e.target.value)}
-                          placeholder="e.g. root or proxy_user"
-                          disabled={selected.paymentStatus !== "received"}
-                        />
-                      </div>
-                      <div className="auth-form__field">
-                        <label htmlFor="deliver-pass">Password</label>
-                        <input
-                          id="deliver-pass"
-                          type="text"
-                          value={deliverPassword}
-                          onChange={(e) => setDeliverPassword(e.target.value)}
-                          placeholder="Login password"
-                          disabled={selected.paymentStatus !== "received"}
-                        />
-                      </div>
-                    </div>
+                    ))}
                     {deliverError && (
                       <div className="auth-form__error">{deliverError}</div>
                     )}
@@ -559,23 +635,33 @@ export function AdminOrdersPanel() {
                       onClick={() => {
                         void (async () => {
                           setDeliverError("");
-                          const result = await deliverOrderToCustomer(selected.id, {
-                            ip: deliverIp,
-                            username: deliverUsername,
-                            password: deliverPassword,
-                          });
-                          if (!result) {
-                            setDeliverError(
-                              "Fill IP, username and password. Payment must be received."
+                          try {
+                            const result = await deliverOrderToCustomer(
+                              selected.id,
+                              deliverUnits
                             );
-                            return;
+                            if (!result) {
+                              setDeliverError(
+                                `Fill all ${selected.quantity} unit(s). Payment must be received.`
+                              );
+                              return;
+                            }
+                            setSelected(result);
+                            setSaveSuccess(
+                              `Delivered ${selected.quantity} unit(s) to customer.`
+                            );
+                            await fetchServers();
+                            load();
+                          } catch (err) {
+                            setDeliverError(
+                              err instanceof Error ? err.message : "Delivery failed."
+                            );
                           }
-                          setSelected(result);
-                          load();
                         })();
                       }}
                     >
-                      Deliver to Customer → Shows in /client/servers
+                      Deliver {selected.quantity} unit
+                      {selected.quantity > 1 ? "s" : ""} to Customer
                     </button>
                   </div>
                 )}

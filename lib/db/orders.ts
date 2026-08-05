@@ -233,6 +233,17 @@ export async function dbDeliverOrderUnits(
   if (order.paymentStatus !== "received") return null;
   if (order.fulfillmentStatus === "delivered") return null;
 
+  if (cleaned.length !== order.quantity) {
+    throw new Error(
+      `This order needs ${order.quantity} IP(s). You provided ${cleaned.length}.`
+    );
+  }
+
+  const uniqueIps = new Set(cleaned.map((u) => u.ip.toLowerCase()));
+  if (uniqueIps.size !== cleaned.length) {
+    throw new Error("Each unit needs a different IP address.");
+  }
+
   const { getAllocatedIpSet, getAllocatedVmIdSet } = await import(
     "@/lib/hostheaven/allocated"
   );
@@ -275,9 +286,12 @@ export async function dbDeliverOrderUnits(
 
 export async function dbDeliverOrderToCustomer(
   id: string,
-  creds: { ip: string; username: string; password: string }
+  creds:
+    | { ip: string; username: string; password: string }
+    | { ip: string; username: string; password: string }[]
 ): Promise<Order | null> {
-  return dbDeliverOrderUnits(id, [creds]);
+  const units = Array.isArray(creds) ? creds : [creds];
+  return dbDeliverOrderUnits(id, units);
 }
 
 export async function dbUpdateOrderCredentials(
