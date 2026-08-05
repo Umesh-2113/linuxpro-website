@@ -93,6 +93,9 @@ function isNavActive(item: ClientNavItem, pathname: string, tab: string | null):
   if (item.href === "/client/ip-stock") {
     return pathname === "/client/ip-stock";
   }
+  if (item.href === "/client/invoices") {
+    return pathname === "/client/invoices" || pathname.startsWith("/client/invoice/");
+  }
   return pathname === item.href || pathname.startsWith(`${item.href}/`);
 }
 

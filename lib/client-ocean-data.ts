@@ -55,6 +55,7 @@ export const oceanClientNav: ClientNavItem[] = [
   { href: "/client/orders", label: "My Orders", icon: "orders", group: "account" },
   { href: "/client/orders?tab=history", label: "History", icon: "history", group: "account" },
   { href: "/client/wallet", label: "My Wallet", icon: "wallet", group: "account" },
+  { href: "/client/invoices", label: "Invoices", icon: "orders", group: "account" },
   { href: "/client/servers", label: "My Servers", icon: "server", group: "account" },
   { href: "/client/support", label: "Support", icon: "chat", group: "account" },
 ];

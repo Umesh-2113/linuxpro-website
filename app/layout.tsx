@@ -8,6 +8,7 @@ import "./home-redesign.css";
 import "./client-ocean.css";
 import "./ao-orders.css";
 import "./cm-manage.css";
+import "./invoice.css";
 
 const inter = Inter({
   subsets: ["latin"],

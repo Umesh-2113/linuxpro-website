@@ -15,6 +15,7 @@ import {
 } from "@/lib/orders";
 import { getUser } from "@/lib/auth";
 import { getServersByOrder } from "@/lib/user-servers";
+import { canViewInvoice } from "@/lib/invoice";
 
 function getPaymentMethodLabel(order: Order): string {
   if (order.paymentGateway === "wallet") return "Wallet";
@@ -199,6 +200,11 @@ export function ClientOrdersPanel() {
                     ₹{o.totalAmount.toLocaleString("en-IN")}
                   </strong>
                   <span className="co-row__pay">{getAdminPaymentLabel(o)}</span>
+                  {canViewInvoice(o) ? (
+                    <Link href={`/client/invoice/${encodeURIComponent(o.id)}`} className="btn btn--outline btn--sm">
+                      Invoice
+                    </Link>
+                  ) : null}
                   {delivered && servers.length > 0 ? (
                     <Link
                       href={`/client/servers/${servers[0].id}`}
