@@ -834,6 +834,63 @@
     bottom: 18px;
     right: 14px;
   }
+
+  .ocean-stock__head {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .ocean-stock__search-wrap {
+    width: 100%;
+  }
+
+  .ocean-plan-row {
+    padding: 14px;
+  }
+
+  .ocean-plan-row__title {
+    font-size: 1.05rem;
+  }
+
+  .ocean-plan-row__ip {
+    font-size: 1.1rem;
+    display: inline-block;
+  }
+
+  .ocean-plan-row__series {
+    font-size: 0.78rem;
+  }
+
+  .ocean-plan-row__footer {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .ocean-plan-row__price {
+    text-align: left;
+  }
+
+  .ocean-plan-row__actions {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr 1.2fr;
+    gap: 8px;
+  }
+
+  .ocean-plan-row__actions .btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .cs-page {
+    padding-bottom: 24px;
+  }
+
+  .cs-row__ip {
+    font-size: 1.05rem;
+  }
 }
 
 [data-theme="light"] .ocean-sidebar {
