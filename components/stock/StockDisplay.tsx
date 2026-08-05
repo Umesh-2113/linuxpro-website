@@ -6,6 +6,7 @@ import { BuyStockModal } from "@/components/stock/BuyStockModal";
 import {
   formatStockPrice,
   formatStockSpecs,
+  getProductSeriesName,
   getRamPlans,
   getStock,
   fetchStock,
@@ -55,14 +56,14 @@ type Props = {
 
 function getStockDescription(item: StockItem): string {
   if (item.type === "proxy") {
-    return `Premium proxy IP series ${item.series} on port ${item.port} in ${item.region}. High anonymity, low latency, and ready for production workloads.`;
+    return `Premium proxy IP series ${getProductSeriesName(item.series)} on port ${item.port} in ${item.region}. High anonymity, low latency, and ready for production workloads.`;
   }
   const plans = getRamPlans(item);
   const specs =
     plans.length > 0
       ? plans.map((p) => `${p.vcpu}c/${p.ram}GB`).join(", ")
       : formatStockSpecs(item);
-  return `${stockTypeLabels[item.type]} on IP series ${item.series} — ${specs}, ${item.storage} GB NVMe in ${item.region}. Ships with ${item.os} pre-installed.`;
+  return `${stockTypeLabels[item.type]} on IP series ${getProductSeriesName(item.series)} — ${specs}, ${item.storage} GB NVMe in ${item.region}. Ships with ${item.os} pre-installed.`;
 }
 
 export function StockDisplay({ variant = "public" }: Props) {
@@ -163,7 +164,8 @@ export function StockDisplay({ variant = "public" }: Props) {
         >
           <div className="stock-card__compact-main">
             <h3 className="stock-card__series">
-              <span className="stock-card__ip-prefix">IP</span> {item.series}
+              <span className="stock-card__ip-prefix">IP</span>{" "}
+              {getProductSeriesName(item.series)}
             </h3>
             <span className={`stock-card__compact-qty stock-card__compact-qty--${status}`}>
               <strong>{item.quantity}</strong> available
@@ -206,7 +208,8 @@ export function StockDisplay({ variant = "public" }: Props) {
               {typeIcons[item.type]} {stockTypeLabels[item.type]}
             </span>
             <h3 className="stock-card__series">
-              <span className="stock-card__ip-prefix">IP</span> {item.series}
+              <span className="stock-card__ip-prefix">IP</span>{" "}
+              {getProductSeriesName(item.series)}
             </h3>
           </div>
           <span className={`stock-status stock-status--${status}`}>
@@ -249,7 +252,7 @@ export function StockDisplay({ variant = "public" }: Props) {
                   </li>
                   <li>
                     <span>IP Series</span>
-                    <strong>{item.series}</strong>
+                    <strong>{getProductSeriesName(item.series)}</strong>
                   </li>
                   <li>
                     <span>Region</span>

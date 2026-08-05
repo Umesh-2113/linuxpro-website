@@ -10,6 +10,7 @@ import {
   formatStockPrice,
   fetchStock,
   getPlanPromos,
+  getProductSeriesName,
   getRamPlans,
   getStock,
   getStockByType,
@@ -24,9 +25,9 @@ type Props = {
 };
 
 function cardTitle(item: StockItem): string {
-  if (item.type === "proxy") return `Proxy IP — ${item.series}`;
+  if (item.type === "proxy") return `Proxy IP — ${getProductSeriesName(item.series)}`;
   const os = item.os && item.os !== "N/A" ? item.os : stockTypeLabels[item.type];
-  return `${os} — Starter`;
+  return `${os} — ${getProductSeriesName(item.series)}`;
 }
 
 function hasPromo(item: StockItem): boolean {
@@ -171,7 +172,7 @@ export function OceanStockPanel({ category }: Props) {
                     </li>
                     <li>
                       <span>Series</span>
-                      <strong>{item.series}</strong>
+                      <strong>{getProductSeriesName(item.series)}</strong>
                     </li>
                   </ul>
                 ) : (
@@ -199,7 +200,7 @@ export function OceanStockPanel({ category }: Props) {
 
                 <div className="ocean-plan-card__price">{formatStockPrice(item)}</div>
                 <div className="ocean-plan-card__ip">
-                  IP <strong>{item.series}</strong>
+                  IP <strong>{getProductSeriesName(item.series)}</strong>
                   {item.quantity > 0 && (
                     <span className="ocean-plan-card__qty">{item.quantity} in stock</span>
                   )}

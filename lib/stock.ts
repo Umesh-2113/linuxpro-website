@@ -350,8 +350,43 @@ export function formatRamPlansSummary(item: StockItem): string {
     .join(" · ");
 }
 
+/**
+ * Client-facing series label under the main brand (LinuxPro).
+ * Strips supplier names like "Heaven" / "HostHeaven" from stock titles.
+ * Raw `series` in DB is unchanged (auto-deliver / matching still use it).
+ */
 export function getProductSeriesName(series: string): string {
-  return series.trim();
+  const original = series.trim();
+  if (!original) return "LinuxPro";
+
+  const hadSupplier =
+    /\bhost\s*heaven\b/i.test(original) || /\bheaven\b/i.test(original);
+
+  if (!hadSupplier) {
+    return original;
+  }
+
+  const cleaned = original
+    .replace(/\bhost\s*heaven\b/gi, " ")
+    .replace(/\bheaven\b/gi, " ")
+    .replace(/[|/_]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  const ipMatch =
+    cleaned.match(/\d{1,3}(?:\.\d{1,3}){2}/) ||
+    cleaned.match(/\d{1,3}\.\d{1,3}/);
+  const rest = cleaned
+    .replace(/\d{1,3}(?:\.\d{1,3}){1,3}/g, " ")
+    .replace(/[^\w\s.-]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (ipMatch) {
+    return rest ? `LinuxPro ${rest} · ${ipMatch[0]}` : `LinuxPro · ${ipMatch[0]}`;
+  }
+  if (!cleaned) return "LinuxPro";
+  return `LinuxPro · ${cleaned}`;
 }
 
 export function getProductSubtitle(type: StockType, region: string): string {
