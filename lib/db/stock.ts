@@ -76,8 +76,11 @@ export async function dbUpdateStockItem(
 }
 
 export async function dbDeleteStockItem(id: string): Promise<boolean> {
-  const result = await (await collection()).deleteOne({ id });
-  return result.deletedCount > 0;
+  const { withMongoWriteRetry } = await import("@/lib/mongodb");
+  return withMongoWriteRetry(async () => {
+    const result = await (await collection()).deleteOne({ id });
+    return result.deletedCount > 0;
+  });
 }
 
 export async function dbGetStockByType(type: StockType | "all"): Promise<StockItem[]> {

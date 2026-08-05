@@ -102,9 +102,21 @@ export function AdminStockPanel() {
   }, []);
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Delete this stock item?")) return;
-    await deleteStockItem(id);
-    await loadItems();
+    if (!confirm("Delete this stock item? It will not be auto-recreated by HostHeaven sync.")) {
+      return;
+    }
+    try {
+      await deleteStockItem(id);
+      await loadItems();
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Failed to delete stock item.";
+      alert(
+        message.toLowerCase().includes("unauthorized")
+          ? "Admin session expired. Please log in again from Admin Login."
+          : message
+      );
+    }
   };
 
   const filtered = query.trim()
