@@ -189,6 +189,14 @@ export async function dbCreateOrder(data: {
   await withMongoWriteRetry(async () => {
     await (await collection()).insertOne(order);
   });
+
+  try {
+    const { notifyAdminNewOrder } = await import("@/lib/order-notify");
+    notifyAdminNewOrder(order);
+  } catch {
+    /* never block order create on notify */
+  }
+
   return order;
 }
 
@@ -235,6 +243,16 @@ export async function dbUpdateOrder(
   await withMongoWriteRetry(async () => {
     await (await collection()).updateOne({ id }, { $set: updated });
   });
+
+  if (prev.paymentStatus !== "received" && updated.paymentStatus === "received") {
+    try {
+      const { notifyAdminOrderPaid } = await import("@/lib/order-notify");
+      notifyAdminOrderPaid(updated);
+    } catch {
+      /* never block payment on notify */
+    }
+  }
+
   return updated;
 }
 
