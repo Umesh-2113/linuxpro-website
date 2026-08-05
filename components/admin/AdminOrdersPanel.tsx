@@ -23,9 +23,25 @@ import {
   type PaymentStatus,
 } from "@/lib/orders";
 import { stockTypeLabels } from "@/lib/stock";
+import {
+  defaultExpiresAt,
+  fetchServers,
+  formatServerExpiry,
+  getServersByOrder,
+  isServerExpired,
+  resolveServerExpiresAt,
+} from "@/lib/user-servers";
 
 type PaymentFilter = "all" | PaymentStatus;
 type FulfillmentFilter = "all" | FulfillmentStatus;
+
+function getOrderExpiryIso(order: Order): string {
+  const linked = getServersByOrder(order.id);
+  if (linked.length > 0) {
+    return resolveServerExpiresAt(linked[0]);
+  }
+  return defaultExpiresAt(order.createdAt);
+}
 
 export function AdminOrdersPanel() {
   const [orders, setOrders] = useState<Order[]>([]);
@@ -40,6 +56,7 @@ export function AdminOrdersPanel() {
   const [deliverError, setDeliverError] = useState("");
   const [saveSuccess, setSaveSuccess] = useState("");
   const [autoBusy, setAutoBusy] = useState(false);
+  const [serversTick, setServersTick] = useState(0);
 
   const load = useCallback(() => {
     let list = getOrders();
@@ -67,9 +84,21 @@ export function AdminOrdersPanel() {
   }, [paymentFilter, fulfillmentFilter, search]);
 
   useEffect(() => {
-    void fetchOrders().then(() => load());
-    window.addEventListener("orders-updated", load);
-    return () => window.removeEventListener("orders-updated", load);
+    void Promise.all([fetchOrders(), fetchServers()]).then(() => {
+      load();
+      setServersTick((n) => n + 1);
+    });
+    const onOrders = () => load();
+    const onServers = () => {
+      setServersTick((n) => n + 1);
+      load();
+    };
+    window.addEventListener("orders-updated", onOrders);
+    window.addEventListener("servers-updated", onServers);
+    return () => {
+      window.removeEventListener("orders-updated", onOrders);
+      window.removeEventListener("servers-updated", onServers);
+    };
   }, [load]);
 
   useEffect(() => {
@@ -82,6 +111,10 @@ export function AdminOrdersPanel() {
   }, [selected]);
 
   const stats = getOrderStats();
+  void serversTick;
+
+  const selectedExpiry = selected ? getOrderExpiryIso(selected) : null;
+  const selectedExpired = selectedExpiry ? isServerExpired(selectedExpiry) : false;
 
   const handleSelect = (order: Order) => {
     setSelected(order);
@@ -117,6 +150,7 @@ export function AdminOrdersPanel() {
       }
       if (result.delivered) {
         setSaveSuccess(result.message || "Auto-delivered successfully.");
+        await fetchServers();
       } else {
         setDeliverError(result.message || result.order?.adminNote || "No free IP matched.");
       }
@@ -212,7 +246,10 @@ export function AdminOrdersPanel() {
             <p className="stock-empty-text">No orders yet.</p>
           ) : (
             <ul className="admin-ticket-items">
-              {orders.map((o) => (
+              {orders.map((o) => {
+                const expiryIso = getOrderExpiryIso(o);
+                const expired = isServerExpired(expiryIso);
+                return (
                 <li key={o.id}>
                   <button
                     type="button"
@@ -231,12 +268,19 @@ export function AdminOrdersPanel() {
                     <span className="admin-ticket-item__meta">
                       {o.userName} · ₹{o.totalAmount.toLocaleString("en-IN")}
                     </span>
+                    <span className="admin-ticket-item__meta admin-ticket-item__meta--dates">
+                      Ordered {formatOrderDate(o.createdAt)}
+                      {" · "}
+                      Exp {formatServerExpiry(expiryIso)}
+                      {expired ? " · Expired" : ""}
+                    </span>
                     <span className={`status-badge status-badge--${o.fulfillmentStatus === "delivered" ? "paid" : o.fulfillmentStatus === "cancelled" ? "closed" : "open"}`}>
                       {getAdminFulfillmentLabel(o)}
                     </span>
                   </button>
                 </li>
-              ))}
+                );
+              })}
             </ul>
           )}
         </section>
@@ -262,9 +306,8 @@ export function AdminOrdersPanel() {
                   )}
                   <h2 className="order-card__series">IP {getOrderTitle(selected)}</h2>
                   <p className="order-card__subtitle">{getOrderSubtitle(selected)}</p>
-                  <p>
-                    {selected.id} · {selected.userName} ({selected.userEmail}) ·{" "}
-                    {formatOrderDate(selected.createdAt)}
+                  <p className="admin-order-id-line">
+                    {selected.id} · {selected.userName} ({selected.userEmail})
                   </p>
                 </div>
                 <button
@@ -280,6 +323,14 @@ export function AdminOrdersPanel() {
                 <div className="order-detail-box">
                   <h3>Order Details</h3>
                   <ul>
+                    <li><span>Order Date</span><strong>{formatOrderDate(selected.createdAt)}</strong></li>
+                    <li>
+                      <span>Expiry Date</span>
+                      <strong className={selectedExpired ? "admin-order-expiry--expired" : undefined}>
+                        {selectedExpiry ? formatServerExpiry(selectedExpiry) : "—"}
+                        {selectedExpired ? " (Expired)" : ""}
+                      </strong>
+                    </li>
                     <li><span>Type</span><strong>{stockTypeLabels[selected.stockType]}</strong></li>
                     <li><span>IP Series</span><strong>{selected.series}</strong></li>
                     <li><span>Quantity</span><strong>{selected.quantity} pcs</strong></li>

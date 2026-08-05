@@ -3801,8 +3801,25 @@ section { padding: 100px 0; }
 }
 
 .admin-ticket-item__meta {
-  font-size: 0.75rem;
+  display: block;
+  font-size: 0.8rem;
   color: var(--text-muted);
+}
+
+.admin-ticket-item__meta--dates {
+  margin-top: 2px;
+  color: var(--text-muted);
+  opacity: 0.95;
+}
+
+.admin-order-id-line {
+  margin: 6px 0 0;
+  font-size: 0.875rem;
+  color: var(--text-muted);
+}
+
+.admin-order-expiry--expired {
+  color: #f87171;
 }
 
 .admin-ticket-detail__header {
