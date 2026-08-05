@@ -140,8 +140,7 @@ export function OceanStockPanel({ category }: Props) {
           <div className="ocean-plan-list__legend" aria-hidden>
             <span>Plan</span>
             <span>Specs</span>
-            <span>Price</span>
-            <span />
+            <span>Price / Buy</span>
           </div>
 
           {displayed.map((item) => {
@@ -180,57 +179,59 @@ export function OceanStockPanel({ category }: Props) {
                 <div className="ocean-plan-row__specs">
                   {item.type === "proxy" ? (
                     <>
-                      <span>
+                      <span className="ocean-plan-row__chip">
                         <strong>{item.port || "—"}</strong> port
                       </span>
-                      <span>
+                      <span className="ocean-plan-row__chip">
                         <strong>{item.region}</strong>
                       </span>
                     </>
                   ) : (
                     <>
-                      <span>
+                      <span className="ocean-plan-row__chip">
                         <strong>{plan.ram}GB</strong> RAM
                       </span>
-                      <span>
+                      <span className="ocean-plan-row__chip">
                         <strong>{plan.vcpu}</strong> vCPU
                       </span>
-                      <span>
+                      <span className="ocean-plan-row__chip">
                         <strong>{item.storage}GB</strong> SSD
                       </span>
                     </>
                   )}
                 </div>
 
-                <div className="ocean-plan-row__price">
-                  <strong>{formatStockPrice(item)}</strong>
-                  <span>per unit</span>
-                </div>
+                <div className="ocean-plan-row__footer">
+                  <div className="ocean-plan-row__price">
+                    <strong>{formatStockPrice(item)}</strong>
+                    <span>per unit</span>
+                  </div>
 
-                <div className="ocean-plan-row__actions">
-                  {!outOfStock ? (
-                    <>
-                      <button
-                        type="button"
-                        className={`btn btn--ghost ocean-plan-row__cart${inCart ? " is-added" : ""}`}
-                        onClick={() => handleAddToCart(item)}
-                        disabled={inCart}
-                      >
-                        {inCart ? "Added" : "Cart"}
-                      </button>
-                      <button
-                        type="button"
-                        className="btn btn--primary"
-                        onClick={() => setBuyItem(item)}
-                      >
-                        Buy
-                      </button>
-                    </>
-                  ) : (
-                    <Link href="/client/support" className="btn btn--outline">
-                      Request
-                    </Link>
-                  )}
+                  <div className="ocean-plan-row__actions">
+                    {!outOfStock ? (
+                      <>
+                        <button
+                          type="button"
+                          className={`btn btn--ghost ocean-plan-row__cart${inCart ? " is-added" : ""}`}
+                          onClick={() => handleAddToCart(item)}
+                          disabled={inCart}
+                        >
+                          {inCart ? "Added" : "Cart"}
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn--primary"
+                          onClick={() => setBuyItem(item)}
+                        >
+                          Buy
+                        </button>
+                      </>
+                    ) : (
+                      <Link href="/client/support" className="btn btn--outline">
+                        Request
+                      </Link>
+                    )}
+                  </div>
                 </div>
               </article>
             );
