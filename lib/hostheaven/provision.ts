@@ -46,6 +46,58 @@ export async function listAvailableHostHeavenVms(
   });
 }
 
+async function buildNoMatchNote(series: string): Promise<string> {
+  try {
+    const [usedIps, usedVmIds, vms] = await Promise.all([
+      getAllocatedIpSet(),
+      getAllocatedVmIdSet(),
+      hostHeavenListVms(),
+    ]);
+    const active = vms.filter((vm) => (vm.status ?? "ACTIVE").toUpperCase() === "ACTIVE");
+    const freeAll = active.filter((vm) => isVmAvailable(vm, usedIps, usedVmIds));
+    const seriesMatched = active.filter(
+      (vm) => vm.ips[0] && ipMatchesSeries(vm.ips[0], series)
+    );
+    const seriesFree = seriesMatched.filter((vm) =>
+      isVmAvailable(vm, usedIps, usedVmIds)
+    );
+    const seriesSold = seriesMatched.length - seriesFree.length;
+
+    const freePrefixes = [
+      ...new Set(
+        freeAll
+          .map((vm) => {
+            const parts = (vm.ips[0] || "").split(".");
+            return parts.length >= 2 ? `${parts[0]}.${parts[1]}` : vm.ips[0];
+          })
+          .filter(Boolean)
+      ),
+    ].sort();
+
+    if (seriesMatched.length === 0) {
+      return (
+        `Auto-provision: HostHeaven pe series "${series}" ka koi VM nahi mila. ` +
+        (freePrefixes.length
+          ? `Free series abhi: ${freePrefixes.join(", ")}. Stock series isi me se rakho, ya HostHeaven pe is series ke naye VMs add karo.`
+          : `HostHeaven pe abhi koi free VM nahi hai.`)
+      );
+    }
+
+    if (seriesFree.length === 0) {
+      return (
+        `Auto-provision: series "${series}" ke ${seriesMatched.length} VM HostHeaven pe hain, ` +
+        `lekin ${seriesSold} pehle se LinuxPro customers ko mil chuke hain (sold). ` +
+        `Is series ke liye HostHeaven pe naya free IP/VPS add karo.` +
+        (freePrefixes.length ? ` Dusri free series: ${freePrefixes.join(", ")}.` : "")
+      );
+    }
+
+    return `Auto-provision: no free HostHeaven IP matching series ${series}.`;
+  } catch (error) {
+    return `Auto-provision: no free HostHeaven IP matching series ${series}.`;
+  }
+}
+
 /**
  * After payment: allocate free HostHeaven VMs matching the order series,
  * fetch IP+password from API, and deliver to the customer automatically.
@@ -90,7 +142,7 @@ export async function autoDeliverPaidOrder(orderId: string): Promise<{
     if (preferHostHeaven) {
       await dbUpdateOrder(orderId, {
         fulfillmentStatus: "processing",
-        adminNote: `Auto-provision: no free HostHeaven IP matching series ${order.series}.`,
+        adminNote: await buildNoMatchNote(order.series),
       });
     }
     return {

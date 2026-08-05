@@ -188,6 +188,29 @@ export async function deliverOrderToCustomer(
   }
 }
 
+export async function autoDeliverOrder(
+  orderId: string
+): Promise<{ delivered: boolean; message: string; order: Order | null }> {
+  const data = await apiPost<{
+    delivered?: boolean;
+    message?: string;
+    order?: Order;
+    error?: string;
+  }>(`/api/orders/${orderId}/auto-deliver`, {});
+  if (data.order) {
+    cache = cache.map((o) => (o.id === orderId ? data.order! : o));
+    emitUpdate();
+    if (data.delivered && typeof window !== "undefined") {
+      window.dispatchEvent(new Event("servers-updated"));
+    }
+  }
+  return {
+    delivered: Boolean(data.delivered),
+    message: data.message || data.error || "",
+    order: data.order ?? null,
+  };
+}
+
 export async function updateOrderCredentials(
   id: string,
   creds: { ip: string; username: string; password: string }
