@@ -87,6 +87,9 @@ function isNavActive(item: ClientNavItem, pathname: string, tab: string | null):
   if (item.href === "/client/orders") {
     return pathname === "/client/orders" && tab !== "history";
   }
+  if (item.href === "/client") {
+    return pathname === "/client";
+  }
   if (item.href === "/client/ip-stock") {
     return pathname === "/client/ip-stock";
   }

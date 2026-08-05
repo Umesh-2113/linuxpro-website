@@ -349,63 +349,88 @@ export function ClientServerManagePanel({ serverId }: Props) {
         </div>
       ) : null}
 
-      <button type="button" className="cm-back" onClick={() => router.push("/client/servers")}>
-        ← All Servers
-      </button>
+      <div className="cm-top">
+        <button type="button" className="cm-back" onClick={() => router.push("/client/servers")}>
+          ← All Servers
+        </button>
+        <span className={`cm-pill cm-pill--${displayPower}`}>
+          {displayPowerLabel} · {displayAccountStatus}
+        </span>
+      </div>
 
-      <header className="cm-hero">
-        <div className="cm-hero__main">
-          <div className="cm-hero__tags">
-            <span>{stockTypeLabels[server.type]}</span>
-            <span>{server.region}</span>
-            <span>#{server.orderId}</span>
-          </div>
-          <h1>{server.name}</h1>
-          <p className="cm-hero__ip">{server.ip}</p>
-          <p className="cm-hero__meta">
-            {osDisplay} · {server.plan} · {expired ? "Expired" : "Expires"}{" "}
-            {formatServerExpiry(expiresAt)}
+      <header className="cm-head">
+        <div>
+          <p className="cm-head__tags">
+            {stockTypeLabels[server.type]} · {server.region} · #{server.orderId}
           </p>
+          <h1>{server.name}</h1>
+          <p className="cm-head__ip">{server.ip}</p>
         </div>
-        <div className={`cm-power cm-power--${displayPower}`}>
-          <strong>{displayPowerLabel}</strong>
-          <span>{displayAccountStatus}</span>
-        </div>
+        <dl className="cm-facts">
+          <div>
+            <dt>OS</dt>
+            <dd>{osDisplay}</dd>
+          </div>
+          <div>
+            <dt>Plan</dt>
+            <dd>{server.plan}</dd>
+          </div>
+          <div>
+            <dt>{expired ? "Expired" : "Expires"}</dt>
+            <dd>{formatServerExpiry(expiresAt)}</dd>
+          </div>
+        </dl>
       </header>
 
-      <section className="cm-controls">
-        <div className="cm-controls__head">
-          <h2>Server Controls</h2>
-          <p>
+      <section className="cm-panel">
+        <div className="cm-panel__head">
+          <h2>Login credentials</h2>
+          <span>Use these to connect via RDP / SSH</span>
+        </div>
+        <div className="server-creds">
+          <CredentialRow label="IP Address" value={server.ip} />
+          {server.type === "proxy" && server.port ? (
+            <CredentialRow label="Port" value={server.port} />
+          ) : null}
+          <CredentialRow label="Username" value={server.username} />
+          <CredentialRow label="Password" value={server.password} secret />
+        </div>
+      </section>
+
+      <section className="cm-panel">
+        <div className="cm-panel__head">
+          <h2>Power &amp; OS</h2>
+          <span>
             {expired
-              ? "Expired — controls disabled until renewal."
+              ? "Controls locked — plan expired"
               : server.provider === "hostheaven"
-                ? "Start, stop, and reinstall run via API."
-                : "API servers run instantly; others go to admin queue."}
-          </p>
+                ? "Runs instantly via API"
+                : "API or admin queue"}
+          </span>
         </div>
 
-        <div className="cm-controls__grid">
+        <div className="cm-actions">
           {actionItems.map(({ action, pending, pendingLabel }) => {
             const isBusy = busyAction === action;
             return (
               <button
                 key={action}
                 type="button"
-                className={`cm-action cm-action--${action}${pending || isBusy ? " is-busy" : ""}`}
+                className={`cm-btn cm-btn--${action}${pending || isBusy ? " is-busy" : ""}`}
                 onClick={() => handleAction(action)}
                 disabled={!!pending || isSuspended || expired || !!busyAction}
               >
-                <span className="cm-action__icon">{actionIcons[action]}</span>
-                <span className="cm-action__text">
+                <span className="cm-btn__icon">{actionIcons[action]}</span>
+                <span className="cm-btn__label">
                   <strong>{serverActionLabels[action]}</strong>
-                  <small>{serverActionDescriptions[action]}</small>
+                  <small>
+                    {isBusy
+                      ? "Processing…"
+                      : pending
+                        ? pendingLabel ?? actionStatusLabels[pending.status]
+                        : serverActionDescriptions[action]}
+                  </small>
                 </span>
-                {(pending || isBusy) && (
-                  <span className="cm-action__status">
-                    {isBusy ? "Processing…" : pendingLabel ?? actionStatusLabels[pending!.status]}
-                  </span>
-                )}
               </button>
             );
           })}
@@ -420,45 +445,9 @@ export function ClientServerManagePanel({ serverId }: Props) {
         )}
       </section>
 
-      <div className="cm-grid">
-        <section className="cm-creds">
-          <h2>Login credentials</h2>
-          <p className="cm-creds__hint">Updated automatically after OS reinstall.</p>
-          <div className="server-creds server-creds--large">
-            <CredentialRow label="IP Address" value={server.ip} />
-            {server.type === "proxy" && server.port ? (
-              <CredentialRow label="Port" value={server.port} />
-            ) : null}
-            <CredentialRow label="Username" value={server.username} />
-            <CredentialRow label="Password" value={server.password} secret />
-          </div>
-        </section>
-
-        <aside className="cm-overview">
-          <h2>Overview</h2>
-          <ul>
-            <li>
-              <span>Region</span>
-              <strong>{server.region}</strong>
-            </li>
-            <li>
-              <span>OS</span>
-              <strong>{osDisplay}</strong>
-            </li>
-            <li>
-              <span>Plan</span>
-              <strong>{server.plan}</strong>
-            </li>
-            <li>
-              <span>Power</span>
-              <strong className={`text-power text-power--${displayPower}`}>{displayPowerLabel}</strong>
-            </li>
-          </ul>
-          <Link href="/client/support" className="cm-support">
-            Need help? Contact Support
-          </Link>
-        </aside>
-      </div>
+      <p className="cm-help">
+        Need help? <Link href="/client/support">Contact Support</Link>
+      </p>
     </div>
   );
 }
