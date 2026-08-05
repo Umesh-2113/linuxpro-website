@@ -170,7 +170,25 @@ export function OceanStockPanel({ category }: Props) {
                   </div>
                   <h3 className="ocean-plan-row__title">{planTitle(item)}</h3>
                   <p className="ocean-plan-row__series">
-                    {seriesLabel}
+                    {(() => {
+                      const ipMatch = seriesLabel.match(
+                        /(\d{1,3}(?:\.\d{1,3}){1,2})/
+                      );
+                      if (!ipMatch || ipMatch.index == null) {
+                        return seriesLabel;
+                      }
+                      const before = seriesLabel.slice(0, ipMatch.index);
+                      const after = seriesLabel.slice(
+                        ipMatch.index + ipMatch[0].length
+                      );
+                      return (
+                        <>
+                          {before}
+                          <strong className="ocean-plan-row__ip">{ipMatch[0]}</strong>
+                          {after}
+                        </>
+                      );
+                    })()}
                     {item.region ? ` · ${item.region}` : ""}
                     {item.quantity > 0 ? ` · ${item.quantity} ready` : ""}
                   </p>
