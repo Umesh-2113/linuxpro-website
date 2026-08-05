@@ -42,7 +42,10 @@ export async function dbGetServers(): Promise<UserServer[]> {
 }
 
 export async function dbGetServersByUser(email: string): Promise<UserServer[]> {
-  return (await dbGetServers()).filter((s) => s.userEmail === email);
+  const normalized = email.trim().toLowerCase();
+  return (await dbGetServers()).filter(
+    (s) => s.userEmail.trim().toLowerCase() === normalized
+  );
 }
 
 export async function dbGetServersByOrder(orderId: string): Promise<UserServer[]> {

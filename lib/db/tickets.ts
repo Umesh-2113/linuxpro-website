@@ -57,7 +57,10 @@ export async function dbGetTicketById(id: string): Promise<SupportTicket | null>
 }
 
 export async function dbGetTicketsByUser(email: string): Promise<SupportTicket[]> {
-  return (await dbGetTickets()).filter((t) => t.userEmail === email);
+  const normalized = email.trim().toLowerCase();
+  return (await dbGetTickets()).filter(
+    (t) => t.userEmail.trim().toLowerCase() === normalized
+  );
 }
 
 export async function dbCreateTicket(data: {

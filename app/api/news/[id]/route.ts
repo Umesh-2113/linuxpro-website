@@ -1,10 +1,14 @@
 import { NextResponse } from "next/server";
 import { dbDeleteNews, dbUpdateNews } from "@/lib/db/news";
+import { isAdminApiRequest } from "@/lib/server-session";
 
 type Params = { params: Promise<{ id: string }> };
 
 export async function PATCH(req: Request, { params }: Params) {
   try {
+    if (!(await isAdminApiRequest())) {
+      return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+    }
     const { id } = await params;
     const body = await req.json();
     const item = await dbUpdateNews(id, body);
@@ -20,6 +24,9 @@ export async function PATCH(req: Request, { params }: Params) {
 
 export async function DELETE(_req: Request, { params }: Params) {
   try {
+    if (!(await isAdminApiRequest())) {
+      return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+    }
     const { id } = await params;
     const ok = await dbDeleteNews(id);
     if (!ok) {

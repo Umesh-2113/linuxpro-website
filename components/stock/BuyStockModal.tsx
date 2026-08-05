@@ -180,10 +180,10 @@ export function BuyStockModal({ item, onClose, onSuccess }: Props) {
     try {
       const res = await fetch("/api/payments/cashfree/create", {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           order_id: order.id,
-          order_amount: order.totalAmount,
           customer_id: sanitizeCustomerId(user.email),
           customer_name: user.name,
           customer_email: user.email,

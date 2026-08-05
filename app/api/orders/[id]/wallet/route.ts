@@ -3,6 +3,8 @@ import { dbDebitWallet } from "@/lib/db/wallet";
 import { dbGetOrderById, dbUpdateOrder } from "@/lib/db/orders";
 import { autoDeliverPaidOrder } from "@/lib/hostheaven/provision";
 import { syncHostHeavenStockToDb } from "@/lib/hostheaven/sync-stock";
+import { getCollection } from "@/lib/mongodb";
+import type { Order } from "@/lib/orders";
 import { requireClientSession } from "@/lib/server-session";
 
 type Params = { params: Promise<{ id: string }> };
@@ -30,6 +32,13 @@ export async function POST(_req: Request, { params }: Params) {
       return NextResponse.json(result.order ?? order);
     }
 
+    if (order.paymentStatus === "processing") {
+      return NextResponse.json(
+        { error: "Payment is already being processed. Please wait a moment." },
+        { status: 409 }
+      );
+    }
+
     if (order.paymentGateway !== "wallet") {
       return NextResponse.json(
         { error: "This order is not set up for wallet payment." },
@@ -37,12 +46,41 @@ export async function POST(_req: Request, { params }: Params) {
       );
     }
 
-    await dbDebitWallet({
-      userEmail: auth.email,
-      amount: order.totalAmount,
-      description: `Order ${order.id} — IP ${order.series}`,
-      refId: order.id,
-    });
+    const col = await getCollection<Order>("orders");
+    const claimed = await col.findOneAndUpdate(
+      { id, paymentStatus: "pending", paymentGateway: "wallet" },
+      {
+        $set: {
+          paymentStatus: "processing",
+          updatedAt: new Date().toISOString(),
+        },
+      },
+      { returnDocument: "after" }
+    );
+
+    if (!claimed?.id) {
+      const current = await dbGetOrderById(id);
+      if (current?.paymentStatus === "received") {
+        const result = await autoDeliverPaidOrder(id);
+        return NextResponse.json(result.order ?? current);
+      }
+      return NextResponse.json(
+        { error: "Payment is already being processed." },
+        { status: 409 }
+      );
+    }
+
+    try {
+      await dbDebitWallet({
+        userEmail: auth.email,
+        amount: order.totalAmount,
+        description: `Order ${order.id} — IP ${order.series}`,
+        refId: order.id,
+      });
+    } catch (error) {
+      await dbUpdateOrder(id, { paymentStatus: "pending" });
+      throw error;
+    }
 
     const updated = await dbUpdateOrder(id, {
       paymentStatus: "received",

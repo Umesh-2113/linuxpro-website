@@ -127,8 +127,7 @@ export async function syncHostHeavenStockToDb(
 
       for (const pool of pools) {
         const matches = findMatchingStock(stock, pool.series);
-        const hostHeavenMatches = matches.filter((m) => m.provider === "hostheaven");
-        const targets = hostHeavenMatches.length > 0 ? hostHeavenMatches : matches;
+        const targets = matches.filter((m) => m.provider === "hostheaven");
 
         if (targets.length > 0) {
           for (const item of targets) {

@@ -10,13 +10,13 @@ async function assertTicketAccess(ticketId: string) {
     return { ok: false as const, status: 404, error: "Ticket not found." };
   }
   if (await isAdminApiRequest()) {
-    return { ok: true as const, ticket };
+    return { ok: true as const, ticket, isAdmin: true as const };
   }
   const auth = await requireClientSession(ticket.userEmail);
   if (!auth.ok) {
     return { ok: false as const, status: auth.status, error: auth.error };
   }
-  return { ok: true as const, ticket };
+  return { ok: true as const, ticket, isAdmin: false as const };
 }
 
 export async function GET(_req: Request, { params }: Params) {
@@ -41,6 +41,14 @@ export async function PATCH(req: Request, { params }: Params) {
       return NextResponse.json({ error: access.error }, { status: access.status });
     }
     const body = await req.json();
+
+    if (!access.isAdmin) {
+      return NextResponse.json(
+        { error: "Use the reply endpoint to message support." },
+        { status: 403 }
+      );
+    }
+
     const ticket = await dbUpdateTicket(id, body);
     if (!ticket) {
       return NextResponse.json({ error: "Ticket not found." }, { status: 404 });
@@ -54,10 +62,13 @@ export async function PATCH(req: Request, { params }: Params) {
 
 export async function DELETE(_req: Request, { params }: Params) {
   try {
+    if (!(await isAdminApiRequest())) {
+      return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+    }
     const { id } = await params;
-    const access = await assertTicketAccess(id);
-    if (!access.ok) {
-      return NextResponse.json({ error: access.error }, { status: access.status });
+    const ticket = await dbGetTicketById(id);
+    if (!ticket) {
+      return NextResponse.json({ error: "Ticket not found." }, { status: 404 });
     }
     await dbDeleteTicket(id);
     return NextResponse.json({ success: true });

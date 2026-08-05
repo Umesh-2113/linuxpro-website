@@ -7,7 +7,7 @@ import {
   type StockType,
 } from "@/lib/stock";
 
-export type PaymentStatus = "pending" | "received" | "not_received";
+export type PaymentStatus = "pending" | "processing" | "received" | "not_received";
 export type FulfillmentStatus = "pending" | "processing" | "delivered" | "cancelled";
 
 export type Order = {
@@ -286,6 +286,7 @@ export function getOrderSubtitle(order: Order): string {
 
 export const paymentStatusLabels: Record<PaymentStatus, string> = {
   pending: "Payment Pending",
+  processing: "Payment Processing",
   received: "Payment Received",
   not_received: "Payment Not Received",
 };

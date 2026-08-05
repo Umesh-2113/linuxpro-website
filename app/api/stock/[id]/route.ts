@@ -1,10 +1,14 @@
 import { NextResponse } from "next/server";
 import { dbDeleteStockItem, dbUpdateStockItem } from "@/lib/db/stock";
+import { isAdminApiRequest } from "@/lib/server-session";
 
 type Params = { params: Promise<{ id: string }> };
 
 export async function PATCH(req: Request, { params }: Params) {
   try {
+    if (!(await isAdminApiRequest())) {
+      return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+    }
     const { id } = await params;
     const body = await req.json();
     const item = await dbUpdateStockItem(id, body);
@@ -17,9 +21,12 @@ export async function PATCH(req: Request, { params }: Params) {
     const message =
       error instanceof Error ? error.message : "Failed to update stock item.";
     return NextResponse.json(
-      { error: message.includes("not primary") || message.includes("NotWritablePrimary")
-          ? "Database is reconnecting. Please try again in a few seconds."
-          : "Failed to update stock item." },
+      {
+        error:
+          message.includes("not primary") || message.includes("NotWritablePrimary")
+            ? "Database is reconnecting. Please try again in a few seconds."
+            : "Failed to update stock item.",
+      },
       { status: 500 }
     );
   }
@@ -27,6 +34,9 @@ export async function PATCH(req: Request, { params }: Params) {
 
 export async function DELETE(_req: Request, { params }: Params) {
   try {
+    if (!(await isAdminApiRequest())) {
+      return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+    }
     const { id } = await params;
     const ok = await dbDeleteStockItem(id);
     if (!ok) {

@@ -2,17 +2,23 @@ export const ADMIN_BASE_PATH = "/rockyelfadmin";
 
 const ADMIN_KEY = "linuxpro_admin";
 
-const ADMIN_EMAIL = "skodia.in@gmail.com";
-const ADMIN_PASSWORD = "Sanjay@885522";
-
-export function adminLogin(email: string, password: string): boolean {
-  if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
+/** UI gate only — real auth is the httpOnly cookie from /api/admin/login. */
+export async function adminLogin(email: string, password: string): Promise<boolean> {
+  try {
+    const res = await fetch("/api/admin/login", {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    });
+    if (!res.ok) return false;
     if (typeof window !== "undefined") {
       sessionStorage.setItem(ADMIN_KEY, "true");
     }
     return true;
+  } catch {
+    return false;
   }
-  return false;
 }
 
 export function isAdmin(): boolean {
@@ -24,4 +30,7 @@ export function adminLogout(): void {
   if (typeof window !== "undefined") {
     sessionStorage.removeItem(ADMIN_KEY);
   }
+  void fetch("/api/admin/logout", { method: "POST", credentials: "include" }).catch(
+    () => undefined
+  );
 }

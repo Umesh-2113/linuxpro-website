@@ -68,6 +68,7 @@ export function WalletPanel() {
     try {
       const res = await fetch("/api/wallet/topup", {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           amount: Math.round(value),

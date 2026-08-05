@@ -12,9 +12,10 @@ export function AdminLoginForm() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
 
-  const handleSubmit = (e: FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if (adminLogin(email, password)) {
+    setError("");
+    if (await adminLogin(email, password)) {
       router.push(ADMIN_BASE_PATH);
     } else {
       setError("Invalid admin credentials.");

@@ -203,29 +203,36 @@ export async function dbConfirmWalletTopup(
   cashfreeStatus: string
 ): Promise<{ topup: WalletTopup; balance: number } | null> {
   const col = await topupsCollection();
-  const topup = await col.findOne({ id: topupId });
-  if (!topup) return null;
-
-  if (topup.status === "completed") {
-    const balance = await dbGetWalletBalance(topup.userEmail);
-    return { topup, balance };
-  }
-
-  const now = new Date().toISOString();
-  await col.updateOne(
-    { id: topupId },
-    { $set: { status: "completed", cashfreeOrderStatus: cashfreeStatus, updatedAt: now } }
+  const claimed = await col.findOneAndUpdate(
+    { id: topupId, status: "pending" },
+    {
+      $set: {
+        status: "completed",
+        cashfreeOrderStatus: cashfreeStatus,
+        updatedAt: new Date().toISOString(),
+      },
+    },
+    { returnDocument: "after" }
   );
 
+  if (!claimed?.id) {
+    const topup = await col.findOne({ id: topupId });
+    if (!topup) return null;
+    if (topup.status === "completed") {
+      const balance = await dbGetWalletBalance(topup.userEmail);
+      return { topup, balance };
+    }
+    return null;
+  }
+
   const { balance } = await dbCreditWallet({
-    userEmail: topup.userEmail,
-    amount: topup.amount,
+    userEmail: claimed.userEmail,
+    amount: claimed.amount,
     description: `Wallet top-up via Cashfree`,
     refId: topupId,
   });
 
-  const updatedTopup = await col.findOne({ id: topupId });
-  return { topup: updatedTopup!, balance };
+  return { topup: claimed, balance };
 }
 
 export type WalletAccountSummary = {

@@ -3,6 +3,7 @@ import {
   dbGetActionsByUser,
   dbGetServerActions,
 } from "@/lib/db/server-actions";
+import { dbGetServers } from "@/lib/db/servers";
 import { createAndMaybeAutoExecuteAction } from "@/lib/hostheaven/auto-action";
 import { requireClientSession, requireDataAccess } from "@/lib/server-session";
 import type { ReinstallOsOption, ServerActionType } from "@/lib/server-actions";
@@ -50,11 +51,21 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Server details are required." }, { status: 400 });
     }
 
+    const serverId = String(body.serverId);
+    const servers = await dbGetServers();
+    const server = servers.find((s) => s.id === serverId);
+    if (!server) {
+      return NextResponse.json({ error: "Server not found." }, { status: 404 });
+    }
+    if (server.userEmail.trim().toLowerCase() !== auth.email) {
+      return NextResponse.json({ error: "Forbidden." }, { status: 403 });
+    }
+
     const action = await createAndMaybeAutoExecuteAction({
-      serverId: String(body.serverId),
-      serverName: String(body.serverName || body.serverIp),
-      serverIp: String(body.serverIp),
-      orderId: body.orderId ? String(body.orderId) : "",
+      serverId,
+      serverName: String(body.serverName || server.name || body.serverIp),
+      serverIp: String(body.serverIp || server.ip),
+      orderId: body.orderId ? String(body.orderId) : server.orderId || "",
       userEmail: auth.email,
       userName: body.userName || auth.email.split("@")[0],
       action: actionType,

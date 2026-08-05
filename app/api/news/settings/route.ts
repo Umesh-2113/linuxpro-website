@@ -3,6 +3,7 @@ import {
   dbGetNewsPopupSettings,
   dbUpdateNewsPopupSettings,
 } from "@/lib/db/news-settings";
+import { isAdminApiRequest } from "@/lib/server-session";
 
 export async function GET() {
   try {
@@ -19,6 +20,9 @@ export async function GET() {
 
 export async function PATCH(req: Request) {
   try {
+    if (!(await isAdminApiRequest())) {
+      return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+    }
     const body = await req.json();
     const settings = await dbUpdateNewsPopupSettings({
       whatsappNumber:

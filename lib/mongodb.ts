@@ -191,14 +191,20 @@ export async function getCollection<T extends Document>(
  * (stale direct connection / primary election).
  */
 export async function withMongoWriteRetry<T>(operation: () => Promise<T>): Promise<T> {
-  try {
-    return await operation();
-  } catch (error) {
-    if (!isNotWritablePrimaryError(error)) throw error;
-    console.warn("[MongoDB] NotWritablePrimary — reconnecting to writable primary…");
-    await resetMongoClient();
-    return await operation();
+  let lastError: unknown;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      return await operation();
+    } catch (error) {
+      lastError = error;
+      if (!isNotWritablePrimaryError(error)) throw error;
+      console.warn(
+        `[MongoDB] NotWritablePrimary — reconnecting (attempt ${attempt + 1}/3)…`
+      );
+      await resetMongoClient();
+    }
   }
+  throw lastError;
 }
 
 export async function getDb(): Promise<Db | ReturnType<typeof getLocalDb>> {

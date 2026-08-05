@@ -6,6 +6,7 @@ import {
 } from "@/lib/db/stock";
 import { syncHostHeavenStockToDb } from "@/lib/hostheaven/sync-stock";
 import { isHostHeavenConfigured } from "@/lib/hostheaven/client";
+import { isAdminApiRequest } from "@/lib/server-session";
 import type { StockType } from "@/lib/stock";
 
 export async function GET(req: Request) {
@@ -33,6 +34,9 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   try {
+    if (!(await isAdminApiRequest())) {
+      return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+    }
     const body = await req.json();
     const item = await dbAddStockItem(body);
     return NextResponse.json(item, { status: 201 });

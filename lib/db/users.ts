@@ -1,6 +1,6 @@
 import { createHash } from "crypto";
 import type { AuthProvider, RegisteredUser } from "@/lib/users";
-import { getCollection } from "@/lib/mongodb";
+import { getCollection, withMongoWriteRetry } from "@/lib/mongodb";
 
 function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
@@ -54,36 +54,39 @@ export async function dbOAuthSignIn(input: {
     return { ok: false, error: "invalid_provider" };
   }
 
-  const email = input.email.trim();
-  const existing = await dbFindUserByEmail(email);
+  return withMongoWriteRetry(async () => {
+    const email = normalizeEmail(input.email);
+    const existing = await dbFindUserByEmail(email);
 
-  if (!existing) {
-    const created: RegisteredUser = {
-      email,
-      name: input.name.trim() || email.split("@")[0],
-      registeredAt: new Date().toISOString(),
-      provider: input.provider,
-      avatarUrl: input.avatarUrl,
+    if (!existing) {
+      const created: RegisteredUser = {
+        email,
+        name: input.name.trim() || email.split("@")[0],
+        registeredAt: new Date().toISOString(),
+        provider: input.provider,
+        avatarUrl: input.avatarUrl,
+      };
+      await (await collection()).insertOne(created);
+      return { ok: true, user: created };
+    }
+
+    if (existing.provider === "email" || existing.passwordHash) {
+      return { ok: false, error: "email_account_exists" };
+    }
+
+    if (existing.provider !== input.provider) {
+      return { ok: false, error: "wrong_oauth_provider" };
+    }
+
+    const updated: RegisteredUser = {
+      ...existing,
+      email: normalizeEmail(existing.email),
+      name: input.name.trim() || existing.name,
+      avatarUrl: input.avatarUrl ?? existing.avatarUrl,
     };
-    await (await collection()).insertOne(created);
-    return { ok: true, user: created };
-  }
-
-  if (existing.provider === "email" || existing.passwordHash) {
-    return { ok: false, error: "email_account_exists" };
-  }
-
-  if (existing.provider !== input.provider) {
-    return { ok: false, error: "wrong_oauth_provider" };
-  }
-
-  const updated: RegisteredUser = {
-    ...existing,
-    name: input.name.trim() || existing.name,
-    avatarUrl: input.avatarUrl ?? existing.avatarUrl,
-  };
-  await (await collection()).updateOne({ email: existing.email }, { $set: updated });
-  return { ok: true, user: updated };
+    await (await collection()).updateOne({ email: existing.email }, { $set: updated });
+    return { ok: true, user: updated };
+  });
 }
 
 export async function dbRegisterWithEmail(
@@ -91,33 +94,36 @@ export async function dbRegisterWithEmail(
   email: string,
   password: string
 ): Promise<{ user: RegisteredUser | null; error?: string }> {
-  if (!name.trim() || !email.trim() || password.length < 6) {
-    return { user: null, error: "Please fill in all fields correctly." };
-  }
+  return withMongoWriteRetry(async () => {
+    if (!name.trim() || !email.trim() || password.length < 6) {
+      return { user: null, error: "Please fill in all fields correctly." };
+    }
 
-  const existing = await dbFindUserByEmail(email);
-  if (existing) {
-    if (isOAuthProvider(existing.provider)) {
+    const normalized = normalizeEmail(email);
+    const existing = await dbFindUserByEmail(normalized);
+    if (existing) {
+      if (isOAuthProvider(existing.provider)) {
+        return {
+          user: null,
+          error: `This email is registered with ${providerLabel(existing.provider)}. Use that button to sign in.`,
+        };
+      }
       return {
         user: null,
-        error: `This email is registered with ${providerLabel(existing.provider)}. Use that button to sign in.`,
+        error: "An account with this email already exists. Sign in instead.",
       };
     }
-    return {
-      user: null,
-      error: "An account with this email already exists. Sign in instead.",
-    };
-  }
 
-  const created: RegisteredUser = {
-    email: email.trim(),
-    name: name.trim(),
-    registeredAt: new Date().toISOString(),
-    passwordHash: hashPassword(password),
-    provider: "email",
-  };
-  await (await collection()).insertOne(created);
-  return { user: created };
+    const created: RegisteredUser = {
+      email: normalized,
+      name: name.trim(),
+      registeredAt: new Date().toISOString(),
+      passwordHash: hashPassword(password),
+      provider: "email",
+    };
+    await (await collection()).insertOne(created);
+    return { user: created };
+  });
 }
 
 export async function dbLoginWithEmail(

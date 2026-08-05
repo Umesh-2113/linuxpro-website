@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { cashfreeFetchOrder, isCashfreePaid } from "@/lib/cashfree-server";
 import {
   dbConfirmWalletTopup,
   dbGetWalletBalance,
@@ -16,7 +17,6 @@ export async function POST(req: Request) {
 
     const body = await req.json();
     const topupId = String(body.topupId ?? "");
-    const cashfreeStatus = String(body.cashfreeStatus ?? "PAID");
 
     if (!topupId) {
       return NextResponse.json({ error: "topupId is required." }, { status: 400 });
@@ -31,7 +31,27 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Forbidden." }, { status: 403 });
     }
 
-    const result = await dbConfirmWalletTopup(topupId, cashfreeStatus);
+    if (topup.status !== "completed") {
+      const cf = await cashfreeFetchOrder(topupId);
+      if (!isCashfreePaid(cf.order_status)) {
+        return NextResponse.json(
+          { error: `Payment not completed (${cf.order_status}).` },
+          { status: 402 }
+        );
+      }
+      const paidAmount = Number(cf.order_amount);
+      if (Number.isFinite(paidAmount) && Math.abs(paidAmount - topup.amount) > 0.5) {
+        return NextResponse.json(
+          { error: "Paid amount does not match top-up amount." },
+          { status: 400 }
+        );
+      }
+    }
+
+    const result = await dbConfirmWalletTopup(
+      topupId,
+      topup.status === "completed" ? topup.cashfreeOrderStatus || "PAID" : "PAID"
+    );
     if (!result) {
       return NextResponse.json({ error: "Top-up not found." }, { status: 404 });
     }
@@ -44,7 +64,9 @@ export async function POST(req: Request) {
     });
   } catch (error) {
     console.error("[API wallet topup confirm]", error);
-    return NextResponse.json({ error: "Failed to confirm top-up." }, { status: 500 });
+    const message =
+      error instanceof Error ? error.message : "Failed to confirm top-up.";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
 

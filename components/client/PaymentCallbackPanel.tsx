@@ -34,7 +34,8 @@ export function PaymentCallbackPanel() {
     async function verify() {
       try {
         const res = await fetch(
-          `/api/payments/cashfree/verify?order_id=${encodeURIComponent(orderId!)}`
+          `/api/payments/cashfree/verify?order_id=${encodeURIComponent(orderId!)}`,
+          { credentials: "include" }
         );
         const data = await res.json();
 

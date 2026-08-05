@@ -1,17 +1,40 @@
-import { headers } from "next/headers";
+import { cookies } from "next/headers";
+import { getToken } from "next-auth/jwt";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth-options";
+import { hasValidAdminSessionCookie } from "@/lib/admin-auth";
 
 export function normalizeSessionEmail(email: string): string {
   return email.trim().toLowerCase();
 }
 
+/** True only with a signed httpOnly admin session cookie (header alone is not trusted). */
 export async function isAdminApiRequest(): Promise<boolean> {
-  const requestHeaders = await headers();
-  return requestHeaders.get("x-linuxpro-admin") === "true";
+  return hasValidAdminSessionCookie();
 }
 
 export async function getClientSessionEmail(): Promise<string | null> {
+  const cookieStore = await cookies();
+  const token = await getToken({
+    req: {
+      cookies: Object.fromEntries(
+        cookieStore.getAll().map(({ name, value }) => [name, value])
+      ),
+    } as Parameters<typeof getToken>[0]["req"],
+    secret: process.env.NEXTAUTH_SECRET,
+  });
+
+  const tokenEmail =
+    typeof token?.email === "string"
+      ? token.email
+      : typeof token?.sub === "string" && token.sub.includes("@")
+        ? token.sub
+        : null;
+
+  if (tokenEmail) {
+    return normalizeSessionEmail(tokenEmail);
+  }
+
   const session = await getServerSession(authOptions);
   const email = session?.user?.email;
   return email ? normalizeSessionEmail(email) : null;
