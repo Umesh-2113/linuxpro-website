@@ -293,7 +293,7 @@ function normalizeUserOrderVm(order: UserOrderOverview): HostHeavenVm | null {
     id: Math.round(order.vmId),
     ips,
     status: order.dbStatus,
-    assigned: Boolean(order.assigned),
+    assigned: Boolean(order.assigned) || Boolean(order.assignedToEmail),
     locked: Boolean(order.locked),
     os: order.os || order.osType,
     monthlyPrice:
@@ -321,7 +321,7 @@ async function listResellerVms(): Promise<HostHeavenVm[]> {
 
 async function listUserVms(): Promise<HostHeavenVm[]> {
   const data = await hostHeavenRequest<{ orders?: UserOrderOverview[] }>(
-    "/api/users/orders/overview?page=0&size=100&sortBy=createdAt&sortDir=desc",
+    "/api/users/orders/overview?page=0&size=500&sortBy=createdAt&sortDir=desc",
     { method: "GET" },
     true,
     false

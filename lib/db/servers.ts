@@ -53,6 +53,28 @@ export async function dbCreateServersFromOrder(
     ? creds
     : Array.from({ length: order.quantity }, () => creds);
 
+  const col = await collection();
+  for (const unit of units) {
+    const ip = unit?.ip?.trim();
+    if (!ip) continue;
+    const clash = await col.findOne({
+      ip: { $regex: `^${ip.replace(/\./g, "\\.")}$`, $options: "i" },
+    });
+    if (clash && clash.orderId !== order.id) {
+      throw new Error(
+        `IP ${ip} is already on server ${clash.id} (order ${clash.orderId}).`
+      );
+    }
+    if (typeof unit.providerVmId === "number" && unit.providerVmId > 0) {
+      const vmClash = await col.findOne({ providerVmId: unit.providerVmId });
+      if (vmClash && vmClash.orderId !== order.id) {
+        throw new Error(
+          `VM ${unit.providerVmId} is already on server ${vmClash.id}.`
+        );
+      }
+    }
+  }
+
   const now = new Date().toISOString();
   const plan = getOrderSubtitle(order);
   const stock = await dbGetStockById(order.stockId);
@@ -86,7 +108,7 @@ export async function dbCreateServersFromOrder(
   }
 
   if (created.length > 0) {
-    await (await collection()).insertMany(created);
+    await col.insertMany(created);
   }
   return created;
 }

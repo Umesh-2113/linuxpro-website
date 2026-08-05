@@ -1,8 +1,11 @@
 import { dbGetOrderById, dbDeliverOrderUnits, dbUpdateOrder } from "@/lib/db/orders";
-import { dbGetServers } from "@/lib/db/servers";
 import { dbGetStockById } from "@/lib/db/stock";
 import type { Order } from "@/lib/orders";
 import { isHostHeavenProvider } from "@/lib/stock-providers";
+import {
+  getAllocatedIpSet,
+  getAllocatedVmIdSet,
+} from "@/lib/hostheaven/allocated";
 import {
   hostHeavenGetVmCredentials,
   hostHeavenListVms,
@@ -11,34 +14,33 @@ import {
 } from "@/lib/hostheaven/client";
 import { ipMatchesSeries } from "@/lib/hostheaven/series";
 
-function isVmAvailable(vm: HostHeavenVm, usedIps: Set<string>): boolean {
+function isVmAvailable(
+  vm: HostHeavenVm,
+  usedIps: Set<string>,
+  usedVmIds: Set<number>
+): boolean {
   const status = (vm.status ?? "ACTIVE").toUpperCase();
   if (status !== "ACTIVE") return false;
   if (vm.locked) return false;
   if (vm.assigned) return false;
+  if (usedVmIds.has(vm.id)) return false;
   const ip = vm.ips[0];
   if (!ip) return false;
   if (usedIps.has(ip.toLowerCase())) return false;
   return true;
 }
 
-async function usedIpSet(): Promise<Set<string>> {
-  const servers = await dbGetServers();
-  return new Set(
-    servers
-      .map((s) => s.ip.trim().toLowerCase())
-      .filter(Boolean)
-  );
-}
-
 export async function listAvailableHostHeavenVms(
   series?: string
 ): Promise<HostHeavenVm[]> {
   if (!isHostHeavenConfigured()) return [];
-  const used = await usedIpSet();
-  const vms = await hostHeavenListVms();
+  const [usedIps, usedVmIds, vms] = await Promise.all([
+    getAllocatedIpSet(),
+    getAllocatedVmIdSet(),
+    hostHeavenListVms(),
+  ]);
   return vms.filter((vm) => {
-    if (!isVmAvailable(vm, used)) return false;
+    if (!isVmAvailable(vm, usedIps, usedVmIds)) return false;
     if (series && !ipMatchesSeries(vm.ips[0], series)) return false;
     return true;
   });
@@ -47,6 +49,7 @@ export async function listAvailableHostHeavenVms(
 /**
  * After payment: allocate free HostHeaven VMs matching the order series,
  * fetch IP+password from API, and deliver to the customer automatically.
+ * Never reuses IPs / VM ids already on servers or delivered orders.
  */
 export async function autoDeliverPaidOrder(orderId: string): Promise<{
   order: Order | null;
@@ -109,7 +112,6 @@ export async function autoDeliverPaidOrder(orderId: string): Promise<{
     };
   }
 
-  const selected = available.slice(0, order.quantity);
   const units: {
     ip: string;
     username: string;
@@ -117,16 +119,33 @@ export async function autoDeliverPaidOrder(orderId: string): Promise<{
     providerVmId: number;
     provider: "hostheaven";
   }[] = [];
+  const claimedIps = new Set<string>();
+  const claimedVmIds = new Set<number>();
 
-  for (const vm of selected) {
+  for (const vm of available) {
+    if (units.length >= order.quantity) break;
+    if (claimedVmIds.has(vm.id)) continue;
+
     try {
       const creds = await hostHeavenGetVmCredentials(vm.id, vm.ips[0]);
-      const used = await usedIpSet();
-      if (used.has(creds.ip.toLowerCase())) {
+      const ipKey = creds.ip.trim().toLowerCase();
+      if (!ipKey || claimedIps.has(ipKey) || claimedVmIds.has(creds.vmId)) {
         continue;
       }
+
+      // Re-check DB right before claim (blocks reuse of old-user IPs).
+      const [usedIps, usedVmIds] = await Promise.all([
+        getAllocatedIpSet(),
+        getAllocatedVmIdSet(),
+      ]);
+      if (usedIps.has(ipKey) || usedVmIds.has(creds.vmId)) {
+        continue;
+      }
+
+      claimedIps.add(ipKey);
+      claimedVmIds.add(creds.vmId);
       units.push({
-        ip: creds.ip,
+        ip: creds.ip.trim(),
         username: creds.username,
         password: creds.password,
         providerVmId: creds.vmId,
@@ -140,21 +159,36 @@ export async function autoDeliverPaidOrder(orderId: string): Promise<{
   if (units.length < order.quantity) {
     await dbUpdateOrder(orderId, {
       fulfillmentStatus: "processing",
-      adminNote: `Auto-provision: could not load credentials for enough VMs (${units.length}/${order.quantity}).`,
+      adminNote: `Auto-provision: could not load free credentials (${units.length}/${order.quantity}).`,
     });
     return {
       order: await dbGetOrderById(orderId),
       delivered: false,
-      message: "Could not load enough VM credentials.",
+      message: "Could not load enough unused VM credentials.",
     };
   }
 
-  const delivered = await dbDeliverOrderUnits(orderId, units);
-  if (!delivered) {
+  try {
+    const delivered = await dbDeliverOrderUnits(orderId, units);
+    if (!delivered) {
+      return {
+        order: await dbGetOrderById(orderId),
+        delivered: false,
+        message: "Delivery failed.",
+      };
+    }
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Delivery failed.";
+    console.error("[autoDeliver] deliver", orderId, message);
+    await dbUpdateOrder(orderId, {
+      fulfillmentStatus: "processing",
+      adminNote: `Auto-provision blocked: ${message}`,
+    });
     return {
       order: await dbGetOrderById(orderId),
       delivered: false,
-      message: "Delivery failed.",
+      message,
     };
   }
 

@@ -233,6 +233,35 @@ export async function dbDeliverOrderUnits(
   if (order.paymentStatus !== "received") return null;
   if (order.fulfillmentStatus === "delivered") return null;
 
+  const { getAllocatedIpSet, getAllocatedVmIdSet } = await import(
+    "@/lib/hostheaven/allocated"
+  );
+  const [usedIps, usedVmIds] = await Promise.all([
+    getAllocatedIpSet(),
+    getAllocatedVmIdSet(),
+  ]);
+
+  for (const unit of cleaned) {
+    const ipKey = unit.ip.toLowerCase();
+    if (usedIps.has(ipKey)) {
+      throw new Error(
+        `IP ${unit.ip} is already assigned to another customer. Pick a free IP.`
+      );
+    }
+    if (
+      typeof unit.providerVmId === "number" &&
+      unit.providerVmId > 0 &&
+      usedVmIds.has(unit.providerVmId)
+    ) {
+      throw new Error(
+        `VM ${unit.providerVmId} is already linked to another customer.`
+      );
+    }
+  }
+
+  // Create servers first so allocation is locked before marking delivered.
+  await dbCreateServersFromOrder(order, cleaned);
+
   const primary = cleaned[0];
   const updated = await dbUpdateOrder(id, {
     fulfillmentStatus: "delivered",
@@ -240,10 +269,6 @@ export async function dbDeliverOrderUnits(
     deliverUsername: primary.username,
     deliverPassword: primary.password,
   });
-
-  if (updated) {
-    await dbCreateServersFromOrder(updated, cleaned);
-  }
 
   return updated;
 }

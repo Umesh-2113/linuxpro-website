@@ -3,9 +3,9 @@ import {
   dbGetStock,
   dbUpdateStockItem,
 } from "@/lib/db/stock";
-import { dbGetServers } from "@/lib/db/servers";
 import type { StockItem, StockType } from "@/lib/stock";
 import { computeDefaultStockPrice } from "@/lib/stock";
+import { getAllocatedIpSet } from "@/lib/hostheaven/allocated";
 import {
   hostHeavenListVms,
   isHostHeavenConfigured,
@@ -108,11 +108,7 @@ export async function syncHostHeavenStockToDb(
     }
 
     try {
-      const usedIps = new Set(
-        (await dbGetServers())
-          .map((s) => s.ip.trim().toLowerCase())
-          .filter(Boolean)
-      );
+      const usedIps = await getAllocatedIpSet();
 
       const allVms = await hostHeavenListVms();
       const free = allVms.filter((vm) => {
