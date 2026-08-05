@@ -42,25 +42,37 @@ export async function dbGetStockById(id: string): Promise<StockItem | null> {
 export async function dbAddStockItem(
   item: Omit<StockItem, "id" | "createdAt">
 ): Promise<StockItem> {
-  const newItem: StockItem = {
-    ...item,
-    id: `stock-${Date.now()}`,
-    createdAt: new Date().toISOString(),
-  };
-  await (await collection()).insertOne(newItem);
-  return normalizeItem(newItem);
+  const { withMongoWriteRetry } = await import("@/lib/mongodb");
+  return withMongoWriteRetry(async () => {
+    const newItem: StockItem = {
+      ...item,
+      id: `stock-${Date.now()}`,
+      createdAt: new Date().toISOString(),
+    };
+    await (await collection()).insertOne(newItem);
+    return normalizeItem(newItem);
+  });
 }
 
 export async function dbUpdateStockItem(
   id: string,
   updates: Partial<Omit<StockItem, "id" | "createdAt">>
 ): Promise<StockItem | null> {
-  const col = await collection();
-  const existing = await col.findOne({ id });
-  if (!existing) return null;
-  const next = normalizeItem({ ...existing, ...updates });
-  await col.updateOne({ id }, { $set: next });
-  return next;
+  const { withMongoWriteRetry } = await import("@/lib/mongodb");
+  return withMongoWriteRetry(async () => {
+    const col = await collection();
+    const existing = await col.findOne({ id });
+    if (!existing) return null;
+
+    // Never $set immutable Mongo _id — causes update failures.
+    const { _id: _ignored, ...existingFields } = existing as StockItem & {
+      _id?: unknown;
+    };
+    const next = normalizeItem({ ...existingFields, ...updates, id: existing.id });
+    const { _id: _drop, ...toSet } = next as StockItem & { _id?: unknown };
+    await col.updateOne({ id }, { $set: toSet });
+    return next;
+  });
 }
 
 export async function dbDeleteStockItem(id: string): Promise<boolean> {

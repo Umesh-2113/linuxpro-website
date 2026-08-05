@@ -14,7 +14,14 @@ export async function PATCH(req: Request, { params }: Params) {
     return NextResponse.json(item);
   } catch (error) {
     console.error("[API stock PATCH]", error);
-    return NextResponse.json({ error: "Failed to update stock item." }, { status: 500 });
+    const message =
+      error instanceof Error ? error.message : "Failed to update stock item.";
+    return NextResponse.json(
+      { error: message.includes("not primary") || message.includes("NotWritablePrimary")
+          ? "Database is reconnecting. Please try again in a few seconds."
+          : "Failed to update stock item." },
+      { status: 500 }
+    );
   }
 }
 

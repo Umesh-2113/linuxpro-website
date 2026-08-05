@@ -23,6 +23,9 @@ function getClientOptions(): MongoClientOptions {
     connectTimeoutMS: timeout,
     socketTimeoutMS: 45000,
     maxPoolSize: 10,
+    retryWrites: true,
+    // Writes must hit primary — fixes NotWritablePrimary after Atlas failover.
+    readPreference: "primary",
   };
 }
 
@@ -37,7 +40,7 @@ declare global {
   var _mongoFailed: boolean | undefined;
 }
 
-function resetDevPromise() {
+function resetClientPromise() {
   if (process.env.NODE_ENV === "development") {
     global._mongoClientPromise = undefined;
   } else {
@@ -58,7 +61,7 @@ function isMongoMarkedUnavailable(): boolean {
 function markMongoUnavailable(): void {
   mongoFailed = true;
   global._mongoFailed = true;
-  resetDevPromise();
+  resetClientPromise();
   if (!existsSync(DATA_DIR)) mkdirSync(DATA_DIR, { recursive: true });
   writeFileSync(MONGO_UNAVAILABLE_FILE, new Date().toISOString(), "utf8");
 }
@@ -77,6 +80,11 @@ export function hasMongoEnv(): boolean {
 
 function getMongoUriCandidates(): string[] {
   const uris: string[] = [];
+
+  // Prefer SRV first so the driver can rediscover the writable primary after failover.
+  const srv = process.env.MONGODB_URI?.trim();
+  if (srv) uris.push(srv);
+
   const direct = process.env.MONGODB_DIRECT_URI?.trim();
   if (direct) {
     uris.push(direct);
@@ -90,9 +98,6 @@ function getMongoUriCandidates(): string[] {
     }
   }
 
-  const srv = process.env.MONGODB_URI?.trim();
-  if (srv) uris.push(srv);
-
   if (uris.length === 0) {
     throw new Error("MONGODB_URI or MONGODB_DIRECT_URI must be set in environment variables.");
   }
@@ -100,9 +105,29 @@ function getMongoUriCandidates(): string[] {
   return [...new Set(uris)];
 }
 
-async function isWritablePrimary(client: MongoClient): Promise<boolean> {
-  const hello = await client.db("admin").command({ hello: 1 });
+async function isWritablePrimary(mongoClient: MongoClient): Promise<boolean> {
+  const hello = await mongoClient.db("admin").command({ hello: 1 });
   return Boolean(hello.isWritablePrimary || hello.ismaster);
+}
+
+export async function resetMongoClient(): Promise<void> {
+  const previous = client;
+  client = undefined;
+  resetClientPromise();
+  if (previous) {
+    await previous.close().catch(() => undefined);
+  }
+}
+
+export function isNotWritablePrimaryError(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+  const err = error as { code?: number; codeName?: string; message?: string };
+  return (
+    err.code === 10107 ||
+    err.codeName === "NotWritablePrimary" ||
+    err.message?.includes("not primary") === true ||
+    err.message?.includes("NotWritablePrimary") === true
+  );
 }
 
 async function connectMongoClient(): Promise<MongoClient> {
@@ -111,7 +136,7 @@ async function connectMongoClient(): Promise<MongoClient> {
     const candidate = new MongoClient(uri, getClientOptions());
     try {
       await candidate.connect();
-      if (uri.includes("directConnection=true") && !(await isWritablePrimary(candidate))) {
+      if (!(await isWritablePrimary(candidate))) {
         await candidate.close();
         continue;
       }
@@ -128,7 +153,7 @@ async function connectMongoClient(): Promise<MongoClient> {
 
 function createClientPromise(): Promise<MongoClient> {
   return connectMongoClient().catch((error) => {
-    resetDevPromise();
+    resetClientPromise();
     throw error;
   });
 }
@@ -161,6 +186,21 @@ export async function getCollection<T extends Document>(
   return db.collection(name) as Collection<T>;
 }
 
+/**
+ * Run a Mongo write with one reconnect retry when Atlas returns NotWritablePrimary
+ * (stale direct connection / primary election).
+ */
+export async function withMongoWriteRetry<T>(operation: () => Promise<T>): Promise<T> {
+  try {
+    return await operation();
+  } catch (error) {
+    if (!isNotWritablePrimaryError(error)) throw error;
+    console.warn("[MongoDB] NotWritablePrimary — reconnecting to writable primary…");
+    await resetMongoClient();
+    return await operation();
+  }
+}
+
 export async function getDb(): Promise<Db | ReturnType<typeof getLocalDb>> {
   if (shouldUseLocalFallback() && (mongoFailed || global._mongoFailed || isMongoMarkedUnavailable())) {
     return getLocalDb();
@@ -171,7 +211,7 @@ export async function getDb(): Promise<Db | ReturnType<typeof getLocalDb>> {
     clearMongoUnavailable();
     return db;
   } catch (error) {
-    resetDevPromise();
+    resetClientPromise();
     if (shouldUseLocalFallback()) {
       markMongoUnavailable();
       console.warn(
@@ -199,6 +239,7 @@ export function isMongoConnectionError(error: unknown): boolean {
     err.code === "ENOTFOUND" ||
     err.code === "ETIMEDOUT" ||
     err.message?.includes("querySrv") === true ||
-    err.message?.includes("Server selection timed out") === true
+    err.message?.includes("Server selection timed out") === true ||
+    isNotWritablePrimaryError(error)
   );
 }
