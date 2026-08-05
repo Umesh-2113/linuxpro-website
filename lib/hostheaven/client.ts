@@ -386,10 +386,13 @@ function pickCredentialField(
 /** Fetch live IP + username + password for a HostHeaven VM. */
 export async function hostHeavenGetVmCredentials(
   vmId: number,
-  fallbackIp?: string
+  fallbackIp?: string,
+  options?: { osHint?: string }
 ): Promise<HostHeavenVmCredentials> {
   const session = await getHostHeavenSession();
-  let username = "root";
+  const osHint = (options?.osHint ?? "").toLowerCase();
+  let sawWindows = osHint.includes("windows") || osHint.includes("win");
+  let username = "";
   let password = "";
   let ip = (fallbackIp ?? "").trim();
 
@@ -401,8 +404,14 @@ export async function hostHeavenGetVmCredentials(
       false
     );
     password = pickCredentialField(pwdData, ["password", "rootPassword", "passwd"]);
-    username =
-      pickCredentialField(pwdData, ["username", "user", "login", "rootUser"]) || username;
+    username = pickCredentialField(pwdData, [
+      "username",
+      "user",
+      "login",
+      "rootUser",
+      "adminUser",
+      "administrator",
+    ]);
   } catch {
     /* fall through to order details */
   }
@@ -414,6 +423,12 @@ export async function hostHeavenGetVmCredentials(
       true,
       false
     );
+    const detailOs = String(
+      details.os ?? details.operatingSystem ?? details.template ?? ""
+    ).toLowerCase();
+    if (detailOs.includes("windows") || detailOs.includes("win")) {
+      sawWindows = true;
+    }
     if (!password) {
       password = pickCredentialField(details, [
         "password",
@@ -423,7 +438,14 @@ export async function hostHeavenGetVmCredentials(
       ]);
     }
     username =
-      pickCredentialField(details, ["username", "user", "login", "rootUser"]) || username;
+      pickCredentialField(details, [
+        "username",
+        "user",
+        "login",
+        "rootUser",
+        "adminUser",
+        "administrator",
+      ]) || username;
     if (!ip) {
       const detailIps = extractVmIps(details);
       if (detailIps[0]) ip = detailIps[0];
@@ -436,6 +458,26 @@ export async function hostHeavenGetVmCredentials(
     const vms = await hostHeavenListVms();
     const match = vms.find((vm) => vm.id === vmId);
     if (match?.ips[0]) ip = match.ips[0];
+    const matchOs = String(match?.os ?? "").toLowerCase();
+    if (matchOs.includes("windows") || matchOs.includes("win")) {
+      sawWindows = true;
+    }
+  }
+
+  // Windows VPS uses Administrator — never leave/force "root"
+  if (sawWindows && (!username || username.toLowerCase() === "root")) {
+    username = "Administrator";
+  }
+  if (!username) {
+    // Linux HostHeaven VMs use root; blank OS stays empty for admin to fill
+    const looksLinux =
+      osHint.includes("ubuntu") ||
+      osHint.includes("centos") ||
+      osHint.includes("debian") ||
+      osHint.includes("linux") ||
+      osHint.includes("almalinux") ||
+      osHint.includes("rocky");
+    username = looksLinux ? "root" : "";
   }
 
   if (!ip || !password) {
@@ -443,8 +485,13 @@ export async function hostHeavenGetVmCredentials(
       `Could not load credentials for HostHeaven VM ${vmId}. IP or password missing.`
     );
   }
+  if (!username) {
+    throw new Error(
+      `Could not load username for HostHeaven VM ${vmId}. Fill username manually (Windows = Administrator).`
+    );
+  }
 
-  return { vmId, ip, username: username || "root", password };
+  return { vmId, ip, username, password };
 }
 
 /** Find HostHeaven VM database id by matching the server's public IPv4. */

@@ -63,9 +63,15 @@ function emitUpdate() {
   }
 }
 
-export async function fetchOrders(email?: string): Promise<Order[]> {
-  const path = email ? `/api/orders?email=${encodeURIComponent(email)}` : "/api/orders";
-  if (!email && fetchPromise) return fetchPromise;
+export async function fetchOrders(
+  email?: string,
+  options?: { force?: boolean }
+): Promise<Order[]> {
+  const bust = options?.force ? `&_=${Date.now()}` : "";
+  const path = email
+    ? `/api/orders?email=${encodeURIComponent(email)}${bust}`
+    : `/api/orders?_=${Date.now()}`;
+  if (!email && fetchPromise && !options?.force) return fetchPromise;
 
   const promise = apiGet<Order[]>(path)
     .then((orders) => {
@@ -82,6 +88,7 @@ export async function fetchOrders(email?: string): Promise<Order[]> {
     .catch((err) => {
       if (!email) fetchPromise = null;
       console.error("[fetchOrders]", err);
+      if (options?.force) throw err;
       return email ? [] : cache;
     });
 
@@ -90,9 +97,12 @@ export async function fetchOrders(email?: string): Promise<Order[]> {
 }
 
 export function getOrders(): Order[] {
-  return [...cache].sort(
-    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-  );
+  return [...cache].sort((a, b) => {
+    const bt = new Date(b.createdAt).getTime() || 0;
+    const at = new Date(a.createdAt).getTime() || 0;
+    if (bt !== at) return bt - at;
+    return b.id.localeCompare(a.id);
+  });
 }
 
 export function getOrdersByUser(email: string): Order[] {

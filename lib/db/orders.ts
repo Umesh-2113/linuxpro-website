@@ -59,7 +59,10 @@ async function collection() {
 }
 
 export async function dbGetOrders(): Promise<Order[]> {
-  const orders = await (await collection()).find({}).sort({ createdAt: -1 }).toArray();
+  const orders = await (await collection())
+    .find({})
+    .sort({ createdAt: -1, id: -1 })
+    .toArray();
   return orders.map(migrateOrder);
 }
 
@@ -132,7 +135,7 @@ export async function dbCreateOrder(data: {
   const now = new Date().toISOString();
 
   const order: Order = {
-    id: `ORD-${Date.now().toString().slice(-6)}`,
+    id: `ORD-${Date.now()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`,
     stockId: stock.id,
     stockType: stock.type as StockType,
     series: stock.series,

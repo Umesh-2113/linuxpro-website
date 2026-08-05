@@ -21,7 +21,11 @@ async function parseError(res: Response): Promise<string> {
 }
 
 export async function apiGet<T>(path: string): Promise<T> {
-  const res = await fetch(path, { cache: "no-store", headers: buildHeaders() });
+  const res = await fetch(path, {
+    cache: "no-store",
+    credentials: "include",
+    headers: buildHeaders(),
+  });
   if (!res.ok) throw new Error(await parseError(res));
   return res.json() as Promise<T>;
 }
@@ -29,6 +33,7 @@ export async function apiGet<T>(path: string): Promise<T> {
 export async function apiPost<T>(path: string, body: unknown): Promise<T> {
   const res = await fetch(path, {
     method: "POST",
+    credentials: "include",
     headers: buildHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify(body),
   });
@@ -39,6 +44,7 @@ export async function apiPost<T>(path: string, body: unknown): Promise<T> {
 export async function apiPatch<T>(path: string, body: unknown): Promise<T> {
   const res = await fetch(path, {
     method: "PATCH",
+    credentials: "include",
     headers: buildHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify(body),
   });
@@ -47,6 +53,10 @@ export async function apiPatch<T>(path: string, body: unknown): Promise<T> {
 }
 
 export async function apiDelete(path: string): Promise<void> {
-  const res = await fetch(path, { method: "DELETE", headers: buildHeaders() });
+  const res = await fetch(path, {
+    method: "DELETE",
+    credentials: "include",
+    headers: buildHeaders(),
+  });
   if (!res.ok) throw new Error(await parseError(res));
 }

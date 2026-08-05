@@ -35,6 +35,25 @@ import {
 type PaymentFilter = "all" | PaymentStatus;
 type FulfillmentFilter = "all" | FulfillmentStatus;
 
+function defaultDeliverUsername(order: Order): string {
+  if (order.stockType === "linux") return "root";
+  if (order.stockType === "proxy") return "user";
+  const os = (order.os || "").toLowerCase();
+  if (os.includes("windows") || os.includes("win")) return "Administrator";
+  // VPS username is filled by admin / provider — do not assume root
+  return "";
+}
+
+function blankDeliverUnits(order: Order) {
+  const qty = Math.max(1, order.quantity || 1);
+  const username = defaultDeliverUsername(order);
+  return Array.from({ length: qty }, () => ({
+    ip: "",
+    username,
+    password: "",
+  }));
+}
+
 function getOrderExpiryIso(order: Order): string {
   const linked = getServersByOrder(order.id);
   if (linked.length > 0) {
@@ -57,6 +76,8 @@ export function AdminOrdersPanel() {
   const [saveSuccess, setSaveSuccess] = useState("");
   const [autoBusy, setAutoBusy] = useState(false);
   const [serversTick, setServersTick] = useState(0);
+  const [refreshBusy, setRefreshBusy] = useState(false);
+  const [loadError, setLoadError] = useState("");
 
   const load = useCallback(() => {
     let list = getOrders();
@@ -83,11 +104,30 @@ export function AdminOrdersPanel() {
     });
   }, [paymentFilter, fulfillmentFilter, search]);
 
-  useEffect(() => {
-    void Promise.all([fetchOrders(), fetchServers()]).then(() => {
+  const refreshFromApi = useCallback(async () => {
+    setRefreshBusy(true);
+    try {
+      await Promise.all([fetchOrders(undefined, { force: true }), fetchServers()]);
+      setLoadError("");
       load();
       setServersTick((n) => n + 1);
-    });
+    } catch (err) {
+      console.error("[AdminOrdersPanel] refresh", err);
+      setLoadError(
+        err instanceof Error
+          ? err.message
+          : "Orders load failed — admin re-login karein."
+      );
+    } finally {
+      setRefreshBusy(false);
+    }
+  }, [load]);
+
+  useEffect(() => {
+    void refreshFromApi();
+    const poll = window.setInterval(() => {
+      void refreshFromApi();
+    }, 20000);
     const onOrders = () => load();
     const onServers = () => {
       setServersTick((n) => n + 1);
@@ -96,10 +136,11 @@ export function AdminOrdersPanel() {
     window.addEventListener("orders-updated", onOrders);
     window.addEventListener("servers-updated", onServers);
     return () => {
+      window.clearInterval(poll);
       window.removeEventListener("orders-updated", onOrders);
       window.removeEventListener("servers-updated", onServers);
     };
-  }, [load]);
+  }, [load, refreshFromApi]);
 
   useEffect(() => {
     setAdminNote(selected?.adminNote ?? "");
@@ -109,28 +150,34 @@ export function AdminOrdersPanel() {
       setDeliverUnits([{ ip: "", username: "", password: "" }]);
       return;
     }
-    const qty = Math.max(1, selected.quantity || 1);
     const linked = getServersByOrder(selected.id);
     if (linked.length > 0) {
+      const fallbackUser = defaultDeliverUsername(selected);
       setDeliverUnits(
-        linked.map((s) => ({
-          serverId: s.id,
-          ip: s.ip || "",
-          username: s.username || "",
-          password: s.password || "",
-        }))
+        linked.map((s) => {
+          let username = s.username || "";
+          if (
+            fallbackUser === "Administrator" &&
+            (!username || username.toLowerCase() === "root")
+          ) {
+            username = "Administrator";
+          }
+          return {
+            serverId: s.id,
+            ip: s.ip || "",
+            username,
+            password: s.password || "",
+          };
+        })
       );
       return;
     }
-    const blank = Array.from({ length: qty }, () => ({
-      ip: "",
-      username: "",
-      password: "",
-    }));
+    const blank = blankDeliverUnits(selected);
     if (selected.deliverIp) {
       blank[0] = {
         ip: selected.deliverIp,
-        username: selected.deliverUsername || "",
+        username:
+          selected.deliverUsername || defaultDeliverUsername(selected),
         password: selected.deliverPassword || "",
       };
     }
@@ -200,7 +247,20 @@ export function AdminOrdersPanel() {
         <div>
           <h1>Orders</h1>
           <p>Customer IP stock purchases — verify payment and deliver manually.</p>
+          {loadError ? (
+            <p className="form-error" style={{ marginTop: 8 }}>
+              {loadError} — Logout karke dubara admin login karein, phir Refresh.
+            </p>
+          ) : null}
         </div>
+        <button
+          type="button"
+          className="btn btn--ghost"
+          onClick={() => void refreshFromApi()}
+          disabled={refreshBusy}
+        >
+          {refreshBusy ? "Refreshing…" : "Refresh Orders"}
+        </button>
       </header>
 
       <div className="order-stats">
@@ -603,7 +663,14 @@ export function AdminOrdersPanel() {
                                 next[idx] = { ...next[idx], username: e.target.value };
                                 setDeliverUnits(next);
                               }}
-                              placeholder="e.g. root or vps user"
+                              placeholder={
+                                selected.stockType === "linux"
+                                  ? "root"
+                                  : selected.stockType === "proxy"
+                                    ? "user"
+                                    : defaultDeliverUsername(selected) ||
+                                      "Administrator / VPS user (not root)"
+                              }
                               disabled={selected.paymentStatus !== "received"}
                             />
                           </div>

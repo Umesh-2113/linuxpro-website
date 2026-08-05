@@ -160,7 +160,9 @@ async function tryDeliverFromHostHeaven(
     if (claimedVmIds.has(vm.id)) continue;
 
     try {
-      const creds = await hostHeavenGetVmCredentials(vm.id, vm.ips[0]);
+      const creds = await hostHeavenGetVmCredentials(vm.id, vm.ips[0], {
+        osHint: `${order.os} ${vm.os ?? ""}`,
+      });
       const ipKey = creds.ip.trim().toLowerCase();
       if (!ipKey || claimedIps.has(ipKey) || claimedVmIds.has(creds.vmId)) {
         continue;
