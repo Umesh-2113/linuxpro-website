@@ -27,6 +27,23 @@ function seriesMatches(item: BackupStockItem, series: string): boolean {
   return Boolean(a && b && a === b);
 }
 
+/** VPS ↔ Linux share SSH delivery; Proxy stays its own pool. */
+export function backupTypesCompatible(
+  itemType: StockType,
+  orderType: StockType
+): boolean {
+  if (itemType === orderType) return true;
+  const serverish = new Set<StockType>(["vps", "linux"]);
+  return serverish.has(itemType) && serverish.has(orderType);
+}
+
+function rankTypeMatch(itemType: StockType, orderType?: StockType): number {
+  if (!orderType) return 0;
+  if (itemType === orderType) return 0;
+  if (backupTypesCompatible(itemType, orderType)) return 1;
+  return 99;
+}
+
 export async function dbGetBackupStock(): Promise<BackupStockItem[]> {
   const items = await (await collection()).find({}).sort({ createdAt: -1 }).toArray();
   return items.map(normalize);
@@ -150,7 +167,7 @@ export async function dbReleaseBackupStockForOrder(orderId: string): Promise<num
   });
 }
 
-/** Atomically claim free backup units matching series. */
+/** Atomically claim free backup units matching series (VPS/Linux interchangeable). */
 export async function dbClaimBackupStockForOrder(
   orderId: string,
   series: string,
@@ -163,10 +180,11 @@ export async function dbClaimBackupStockForOrder(
     const free = (await col.find({ status: "free" }).sort({ createdAt: 1 }).toArray())
       .map(normalize)
       .filter((item) => {
-        if (type && item.type !== type) return false;
+        if (type && !backupTypesCompatible(item.type, type)) return false;
         if (usedIps.has(item.ip.trim().toLowerCase())) return false;
         return seriesMatches(item, series);
-      });
+      })
+      .sort((a, b) => rankTypeMatch(a.type, type) - rankTypeMatch(b.type, type));
 
     const claimed: BackupStockItem[] = [];
     for (const item of free) {
@@ -198,7 +216,7 @@ export async function dbCountFreeBackupForSeries(
   const items = await dbGetBackupStock();
   return items.filter((item) => {
     if (item.status !== "free") return false;
-    if (type && item.type !== type) return false;
+    if (type && !backupTypesCompatible(item.type, type)) return false;
     if (usedIps.has(item.ip.trim().toLowerCase())) return false;
     return seriesMatches(item, series);
   }).length;

@@ -37,11 +37,19 @@ const emptyForm: FormState = {
   note: "",
 };
 
+function defaultsForType(type: StockType): Partial<FormState> {
+  if (type === "proxy") {
+    return { port: "8000", os: "N/A", username: "user" };
+  }
+  return { port: "22", os: "Ubuntu 22.04", username: "root" };
+}
+
 export function AdminBackupStockPanel() {
   const [items, setItems] = useState<BackupStockItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | BackupStockStatus>("all");
+  const [typeFilter, setTypeFilter] = useState<"all" | StockType>("all");
   const [form, setForm] = useState<FormState>(emptyForm);
   const [bulk, setBulk] = useState("");
   const [bulkSeries, setBulkSeries] = useState("");
@@ -69,14 +77,21 @@ export function AdminBackupStockPanel() {
   }, []);
 
   const counts = useMemo(() => {
-    const free = items.filter((i) => i.status === "free").length;
-    const sold = items.filter((i) => i.status === "sold").length;
-    const reserved = items.filter((i) => i.status === "reserved").length;
-    return { free, sold, reserved, total: items.length };
+    const free = items.filter((i) => i.status === "free");
+    return {
+      free: free.length,
+      sold: items.filter((i) => i.status === "sold").length,
+      reserved: items.filter((i) => i.status === "reserved").length,
+      total: items.length,
+      freeVps: free.filter((i) => i.type === "vps").length,
+      freeLinux: free.filter((i) => i.type === "linux").length,
+      freeProxy: free.filter((i) => i.type === "proxy").length,
+    };
   }, [items]);
 
   const filtered = items.filter((item) => {
     if (statusFilter !== "all" && item.status !== statusFilter) return false;
+    if (typeFilter !== "all" && item.type !== typeFilter) return false;
     if (!query.trim()) return true;
     const q = query.toLowerCase();
     return (
@@ -84,9 +99,14 @@ export function AdminBackupStockPanel() {
       item.series.toLowerCase().includes(q) ||
       item.username.toLowerCase().includes(q) ||
       item.region.toLowerCase().includes(q) ||
+      item.type.toLowerCase().includes(q) ||
       (item.orderId || "").toLowerCase().includes(q)
     );
   });
+
+  const setFormType = (type: StockType) => {
+    setForm((f) => ({ ...f, type, ...defaultsForType(type) }));
+  };
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -95,8 +115,13 @@ export function AdminBackupStockPanel() {
     setMessage("");
     try {
       await addBackupStockItem(form);
-      setForm({ ...emptyForm, type: form.type, os: form.os, region: form.region });
-      setMessage("Backup IP added.");
+      setForm({
+        ...emptyForm,
+        type: form.type,
+        ...defaultsForType(form.type),
+        region: form.region,
+      });
+      setMessage(`${stockTypeLabels[form.type]} backup unit added.`);
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to add.");
@@ -114,9 +139,13 @@ export function AdminBackupStockPanel() {
       const result = await addBackupStockBulk(bulk, {
         type: bulkType,
         series: bulkSeries || undefined,
+        port: defaultsForType(bulkType).port,
+        os: defaultsForType(bulkType).os,
       });
       setBulk("");
-      setMessage(`Added ${result.created} backup IP(s).`);
+      setMessage(
+        `Added ${result.created} ${stockTypeLabels[bulkType]} backup unit(s).`
+      );
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Bulk add failed.");
@@ -134,7 +163,7 @@ export function AdminBackupStockPanel() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Delete this backup IP?")) return;
+    if (!confirm("Delete this backup unit?")) return;
     await deleteBackupStockItem(id);
     await load();
   };
@@ -145,18 +174,29 @@ export function AdminBackupStockPanel() {
         <div>
           <h1>Backup Stock</h1>
           <p>
-            Extra IP/VPS warehouse. HostHeaven API pe free IP na mile to auto-deliver yahan se deta hai.
+            VPS, Linux IP aur Proxy warehouse. HostHeaven API pe free unit na mile to
+            auto-deliver yahan se hota hai. Type order ke saath match kare (VPS ↔ Linux OK).
           </p>
         </div>
         <div className="admin-topbar__actions">
           <input
             type="search"
             className="admin-topbar__search"
-            placeholder="Search IP, series, order…"
+            placeholder="Search IP, series, type, order…"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             aria-label="Search backup stock"
           />
+          <select
+            value={typeFilter}
+            onChange={(e) => setTypeFilter(e.target.value as typeof typeFilter)}
+            aria-label="Filter type"
+          >
+            <option value="all">All types</option>
+            <option value="vps">VPS</option>
+            <option value="linux">Linux</option>
+            <option value="proxy">Proxy</option>
+          </select>
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value as typeof statusFilter)}
@@ -170,18 +210,24 @@ export function AdminBackupStockPanel() {
         </div>
       </header>
 
-      <div className="admin-stats-grid admin-stats-grid--3" style={{ marginBottom: "1.25rem" }}>
+      <div className="admin-stats-grid" style={{ marginBottom: "1.25rem" }}>
         <div className="admin-stat-card">
-          <span className="admin-stat-card__label">Free</span>
-          <strong className="admin-stat-card__value">{counts.free}</strong>
+          <span className="admin-stat-card__label">Free VPS</span>
+          <strong className="admin-stat-card__value">{counts.freeVps}</strong>
         </div>
         <div className="admin-stat-card">
-          <span className="admin-stat-card__label">Sold</span>
-          <strong className="admin-stat-card__value">{counts.sold}</strong>
+          <span className="admin-stat-card__label">Free Linux</span>
+          <strong className="admin-stat-card__value">{counts.freeLinux}</strong>
         </div>
         <div className="admin-stat-card">
-          <span className="admin-stat-card__label">Total</span>
-          <strong className="admin-stat-card__value">{counts.total}</strong>
+          <span className="admin-stat-card__label">Free Proxy</span>
+          <strong className="admin-stat-card__value">{counts.freeProxy}</strong>
+        </div>
+        <div className="admin-stat-card">
+          <span className="admin-stat-card__label">Sold / Total</span>
+          <strong className="admin-stat-card__value">
+            {counts.sold}/{counts.total}
+          </strong>
           <span className="admin-stat-card__sub">{counts.reserved} reserved</span>
         </div>
       </div>
@@ -200,17 +246,18 @@ export function AdminBackupStockPanel() {
       <div className="admin-backup-forms">
         <form className="admin-stock__list-panel glass" onSubmit={handleAdd}>
           <div className="admin-stock__list-head">
-            <h2>Add single IP</h2>
+            <h2>Add VPS / Linux / Proxy</h2>
           </div>
           <div className="admin-backup-form-body">
+            <p className="stock-empty-text">
+              Pehle <strong>Type</strong> choose karo (VPS / Linux / Proxy), phir IP + login add karo.
+            </p>
             <div className="form-row form-row--2">
               <label className="form-field">
                 <span>Type</span>
                 <select
                   value={form.type}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, type: e.target.value as StockType }))
-                  }
+                  onChange={(e) => setFormType(e.target.value as StockType)}
                 >
                   {(Object.keys(stockTypeLabels) as StockType[]).map((t) => (
                     <option key={t} value={t}>
@@ -220,7 +267,7 @@ export function AdminBackupStockPanel() {
                 </select>
               </label>
               <label className="form-field">
-                <span>Series</span>
+                <span>Series (stock series jaisa)</span>
                 <input
                   required
                   value={form.series}
@@ -229,7 +276,7 @@ export function AdminBackupStockPanel() {
                 />
               </label>
               <label className="form-field">
-                <span>IP</span>
+                <span>IP / Host</span>
                 <input
                   required
                   value={form.ip}
@@ -283,7 +330,7 @@ export function AdminBackupStockPanel() {
               />
             </label>
             <button type="submit" className="btn btn--primary" disabled={saving}>
-              {saving ? "Saving…" : "Add backup IP"}
+              {saving ? "Saving…" : `Add backup ${stockTypeLabels[form.type]}`}
             </button>
           </div>
         </form>
@@ -294,7 +341,8 @@ export function AdminBackupStockPanel() {
           </div>
           <div className="admin-backup-form-body">
             <p className="stock-empty-text">
-              One per line: <code>IP|username|password|port</code>
+              Default type choose karo, phir har line:{" "}
+              <code>IP|username|password|port</code>
             </p>
             <div className="form-row form-row--2">
               <label className="form-field">
@@ -324,7 +372,11 @@ export function AdminBackupStockPanel() {
               <textarea
                 rows={8}
                 value={bulk}
-                placeholder={"103.183.1.10|root|pass123|22\n103.183.1.11|root|pass456"}
+                placeholder={
+                  bulkType === "proxy"
+                    ? "103.183.1.10|user|pass123|8000\n103.183.1.11|user|pass456|8000"
+                    : "103.183.1.10|root|pass123|22\n103.183.1.11|root|pass456|22"
+                }
                 onChange={(e) => setBulk(e.target.value)}
                 required
               />
@@ -334,7 +386,9 @@ export function AdminBackupStockPanel() {
               className="btn btn--primary"
               disabled={saving || !bulk.trim()}
             >
-              {saving ? "Importing…" : "Import lines"}
+              {saving
+                ? "Importing…"
+                : `Import as ${stockTypeLabels[bulkType]}`}
             </button>
           </div>
         </form>
@@ -342,19 +396,24 @@ export function AdminBackupStockPanel() {
 
       <section className="admin-stock__list-panel glass">
         <div className="admin-stock__list-head">
-          <h2>Backup inventory ({filtered.length})</h2>
+          <h2>
+            Backup inventory ({filtered.length})
+            {typeFilter !== "all" ? ` · ${stockTypeLabels[typeFilter]}` : ""}
+          </h2>
         </div>
 
         {loading ? (
           <p className="stock-empty-text">Loading…</p>
         ) : filtered.length === 0 ? (
-          <p className="stock-empty-text">No backup IPs yet. Add some above.</p>
+          <p className="stock-empty-text">
+            No backup units yet. Upar se VPS / Linux / Proxy add karo.
+          </p>
         ) : (
           <div className="admin-stock-table-wrap">
             <table className="client-table admin-stock-table">
               <thead>
                 <tr>
-                  <th>IP</th>
+                  <th>IP / Host</th>
                   <th>Series</th>
                   <th>Type</th>
                   <th>User / Pass</th>
@@ -368,7 +427,7 @@ export function AdminBackupStockPanel() {
                   <tr key={item.id}>
                     <td>
                       <strong>{item.ip}</strong>
-                      {item.port !== "22" ? <small> :{item.port}</small> : null}
+                      {item.port ? <small> :{item.port}</small> : null}
                     </td>
                     <td>{item.series}</td>
                     <td>
