@@ -527,7 +527,8 @@ export function AdminOrdersPanel() {
                   </button>
                 </div>
                 <p className="ao-note">
-                  API auto-deliver is OFF. Enter IP, username and password, then deliver.
+                  API auto-deliver is ON. Paid orders try OceanLinux / HostHeaven / Backup
+                  Stock automatically. Manual deliver still works if API has no free unit.
                 </p>
                 {saveSuccess ? <p className="ao-note ao-note--ok">{saveSuccess}</p> : null}
 
