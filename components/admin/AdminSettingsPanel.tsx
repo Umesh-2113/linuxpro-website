@@ -177,10 +177,10 @@ export function AdminSettingsPanel() {
         <section className="admin-panel glass">
           <h2>How auto delivery works</h2>
           <ol className="admin-panel__note" style={{ paddingLeft: "1.2rem" }}>
-            <li>OceanLinux stock: keep OCEANLINUX_API_KEY/SECRET + wallet balance</li>
-            <li>HostHeaven stock: keep HOSTHEAVEN_* vars in VPS .env</li>
-            <li>Optional Backup Stock fills gaps when API has no free IP</li>
-            <li>Customer pays with Wallet / Cashfree → credentials go to My Servers</li>
+            <li>OceanLinux stock: auto-buy + deliver (needs API keys + wallet)</li>
+            <li>HostHeaven stock: always manual — admin enters IP / user / pass</li>
+            <li>Optional Backup Stock can fill OceanLinux gaps</li>
+            <li>Customer pays with Wallet / Cashfree</li>
           </ol>
         </section>
       </div>

@@ -2,7 +2,6 @@ import { dbGetOrderById, dbDeliverOrderUnits, dbUpdateOrder } from "@/lib/db/ord
 import { dbGetStockById } from "@/lib/db/stock";
 import {
   dbClaimBackupStockForOrder,
-  dbCountFreeBackupForSeries,
   dbReleaseBackupStockForOrder,
 } from "@/lib/db/backup-stock";
 import type { Order } from "@/lib/orders";
@@ -15,7 +14,6 @@ import {
   getAllocatedVmIdSet,
 } from "@/lib/hostheaven/allocated";
 import {
-  hostHeavenGetVmCredentials,
   hostHeavenListVms,
   isHostHeavenConfigured,
   type HostHeavenVm,
@@ -59,86 +57,6 @@ export async function listAvailableHostHeavenVms(
     if (series && !ipMatchesSeries(vm.ips[0], series)) return false;
     return true;
   });
-}
-
-async function buildNoMatchNote(
-  series: string,
-  orderType?: Order["stockType"]
-): Promise<string> {
-  const backupFree = await dbCountFreeBackupForSeries(series, orderType).catch(
-    () => 0
-  );
-
-  try {
-    if (!isHostHeavenConfigured()) {
-      return backupFree > 0
-        ? `Auto-provision: HostHeaven not configured. Backup stock has ${backupFree} free for ${series}, but claim failed.`
-        : `Auto-provision: HostHeaven not configured, and backup stock has no free IP for series "${series}". Admin → Backup Stock me add karo.`;
-    }
-
-    const [usedIps, usedVmIds, vms] = await Promise.all([
-      getAllocatedIpSet(),
-      getAllocatedVmIdSet(),
-      hostHeavenListVms(),
-    ]);
-    const active = vms.filter(
-      (vm) => (vm.status ?? "ACTIVE").toUpperCase() === "ACTIVE"
-    );
-    const freeAll = active.filter((vm) => isVmAvailable(vm, usedIps, usedVmIds));
-    const seriesMatched = active.filter(
-      (vm) => vm.ips[0] && ipMatchesSeries(vm.ips[0], series)
-    );
-    const seriesFree = seriesMatched.filter((vm) =>
-      isVmAvailable(vm, usedIps, usedVmIds)
-    );
-    const seriesSold = seriesMatched.length - seriesFree.length;
-
-    const freePrefixes = [
-      ...new Set(
-        freeAll
-          .map((vm) => {
-            const parts = (vm.ips[0] || "").split(".");
-            return parts.length >= 2 ? `${parts[0]}.${parts[1]}` : vm.ips[0];
-          })
-          .filter(Boolean)
-      ),
-    ].sort();
-
-    const backupHint =
-      backupFree > 0
-        ? ` Backup stock: ${backupFree} free (claim retry / check series match).`
-        : ` Backup stock: 0 free for this series — Admin → Backup Stock me IP|user|pass add karo.`;
-
-    if (seriesMatched.length === 0) {
-      return (
-        `Auto-provision: HostHeaven pe series "${series}" ka koi VM nahi mila. ` +
-        (freePrefixes.length
-          ? `Free series abhi: ${freePrefixes.join(", ")}. `
-          : `HostHeaven pe abhi koi free VM nahi. `) +
-        backupHint
-      );
-    }
-
-    if (seriesFree.length === 0) {
-      return (
-        `Auto-provision: series "${series}" ke ${seriesMatched.length} VM HostHeaven pe hain, ` +
-        `lekin ${seriesSold} pehle se sold hain. ` +
-        (freePrefixes.length
-          ? `Dusri free series: ${freePrefixes.join(", ")}. `
-          : "") +
-        backupHint
-      );
-    }
-
-    return `Auto-provision: no free IP matching series ${series}.${backupHint}`;
-  } catch {
-    return (
-      `Auto-provision: no free HostHeaven IP matching series ${series}.` +
-      (backupFree
-        ? ` Backup free: ${backupFree}.`
-        : ` Backup stock empty for this series.`)
-    );
-  }
 }
 
 type DeliverUnit = {
@@ -244,78 +162,6 @@ async function tryDeliverFromOceanLinux(
   }
 }
 
-async function tryDeliverFromHostHeaven(
-  order: Order
-): Promise<{ units: DeliverUnit[]; error?: string }> {
-  if (!isHostHeavenConfigured()) {
-    return { units: [] };
-  }
-
-  let available: HostHeavenVm[];
-  try {
-    available = await listAvailableHostHeavenVms(order.series);
-  } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Failed to list HostHeaven VMs.";
-    console.error("[autoDeliver]", order.id, message);
-    return { units: [], error: message };
-  }
-
-  if (available.length < order.quantity) {
-    return { units: [] };
-  }
-
-  const units: DeliverUnit[] = [];
-  const claimedIps = new Set<string>();
-  const claimedVmIds = new Set<number>();
-
-  for (const vm of available) {
-    if (units.length >= order.quantity) break;
-    if (claimedVmIds.has(vm.id)) continue;
-
-    try {
-      const creds = await hostHeavenGetVmCredentials(vm.id, vm.ips[0], {
-        osHint: `${order.os} ${vm.os ?? ""}`,
-      });
-      const ipKey = creds.ip.trim().toLowerCase();
-      if (!ipKey || claimedIps.has(ipKey) || claimedVmIds.has(creds.vmId)) {
-        continue;
-      }
-
-      const [usedIps, usedVmIds] = await Promise.all([
-        getAllocatedIpSet(),
-        getAllocatedVmIdSet(),
-      ]);
-      if (usedIps.has(ipKey) || usedVmIds.has(creds.vmId)) {
-        continue;
-      }
-
-      claimedIps.add(ipKey);
-      claimedVmIds.add(creds.vmId);
-      units.push({
-        ip: creds.ip.trim(),
-        username: creds.username,
-        password: creds.password,
-        providerVmId: creds.vmId,
-        provider: "hostheaven",
-      });
-    } catch (error) {
-      console.error("[autoDeliver] credentials", vm.id, error);
-    }
-  }
-
-  if (units.length < order.quantity) {
-    return {
-      units: [],
-      error:
-        available.length >= order.quantity
-          ? `HostHeaven pe ${available.length} free IP mile, lekin credentials load fail (${units.length}/${order.quantity}).`
-          : undefined,
-    };
-  }
-  return { units };
-}
-
 async function tryDeliverFromBackup(order: Order): Promise<DeliverUnit[]> {
   const claimed = await dbClaimBackupStockForOrder(
     order.id,
@@ -338,7 +184,10 @@ async function tryDeliverFromBackup(order: Order): Promise<DeliverUnit[]> {
 }
 
 /**
- * After payment: OceanLinux buy / HostHeaven free VM / Backup Stock auto-deliver.
+ * After payment:
+ * - OceanLinux stock → API auto-buy + deliver
+ * - HostHeaven stock → always manual
+ * - Backup Stock → optional fallback (non-HostHeaven)
  */
 export async function autoDeliverPaidOrder(orderId: string): Promise<{
   order: Order | null;
@@ -366,8 +215,22 @@ export async function autoDeliverPaidOrder(orderId: string): Promise<{
     isOceanLinuxProvider(stock.provider) &&
     Boolean(stock.providerProductId);
 
+  // HostHeaven stays manual — never auto-assign from HostHeaven API.
+  if (stock && isHostHeavenProvider(stock.provider)) {
+    await dbUpdateOrder(orderId, {
+      fulfillmentStatus: "processing",
+      adminNote:
+        "HostHeaven stock: manual delivery required. Enter IP / username / password in Orders.",
+    });
+    return {
+      order: await dbGetOrderById(orderId),
+      delivered: false,
+      message: "HostHeaven orders are manual — deliver from admin.",
+    };
+  }
+
   let units: DeliverUnit[] = [];
-  let source: "oceanlinux" | "hostheaven" | "backup" | null = null;
+  let source: "oceanlinux" | "backup" | null = null;
   let apiError: string | undefined;
 
   if (useOceanLinux && stock?.providerProductId) {
@@ -376,19 +239,6 @@ export async function autoDeliverPaidOrder(orderId: string): Promise<{
     if (ol.units.length >= order.quantity) {
       units = ol.units;
       source = "oceanlinux";
-    }
-  } else {
-    const preferHostHeaven =
-      isHostHeavenConfigured() &&
-      (!stock || isHostHeavenProvider(stock.provider) || stock.provider === "manual");
-
-    if (preferHostHeaven || isHostHeavenConfigured()) {
-      const hh = await tryDeliverFromHostHeaven(order);
-      apiError = hh.error;
-      if (hh.units.length >= order.quantity) {
-        units = hh.units;
-        source = "hostheaven";
-      }
     }
   }
 
@@ -409,7 +259,7 @@ export async function autoDeliverPaidOrder(orderId: string): Promise<{
       apiError ||
       (useOceanLinux
         ? `Auto-provision: OceanLinux deliver failed${apiError ? `: ${apiError}` : ""}. Check wallet balance / product stock, or deliver manually.`
-        : await buildNoMatchNote(order.series, order.stockType));
+        : `Manual delivery required (no OceanLinux / Backup match for series "${order.series}").`);
     await dbUpdateOrder(orderId, {
       fulfillmentStatus: "processing",
       adminNote: note,
@@ -417,7 +267,7 @@ export async function autoDeliverPaidOrder(orderId: string): Promise<{
     return {
       order: await dbGetOrderById(orderId),
       delivered: false,
-      message: "No matching free IP available yet (API + backup).",
+      message: "No automatic IP available yet — deliver manually if needed.",
     };
   }
 
@@ -456,17 +306,8 @@ export async function autoDeliverPaidOrder(orderId: string): Promise<{
     adminNote:
       source === "backup"
         ? `Auto-delivered from Backup Stock: ${ips}`
-        : source === "oceanlinux"
-          ? `Auto-delivered from OceanLinux: ${ips}`
-          : `Auto-delivered from HostHeaven: ${ips}`,
+        : `Auto-delivered from OceanLinux: ${ips}`,
   });
-
-  if (source === "hostheaven") {
-    const { syncHostHeavenStockToDb } = await import("@/lib/hostheaven/sync-stock");
-    await syncHostHeavenStockToDb({ force: true }).catch((error) => {
-      console.error("[autoDeliver] sync after deliver", error);
-    });
-  }
 
   return {
     order: await dbGetOrderById(orderId),
